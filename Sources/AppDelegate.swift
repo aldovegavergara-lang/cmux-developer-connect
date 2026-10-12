@@ -706,6 +706,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 #endif
 
     weak var tabManager: TabManager?
+    lazy var localPeerCoordinator = LocalPeerCoordinator(manager: { [weak self] in self?.tabManager })
+    lazy var localPeerHost = LocalPeerHost()
+    lazy var localPeerWindow = LocalPeerWindowController(coordinator: localPeerCoordinator, host: localPeerHost)
+    private var didReconnectLocalPeers = false
     weak var notificationStore: TerminalNotificationStore?
     weak var sidebarState: SidebarState?
 #if DEBUG
@@ -5648,7 +5652,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         }
 
         attemptStartupSessionRestoreAndSaveIfNeeded(primaryWindow: window)
-        presentCloudWelcomeIfNeeded(over: window)
+        if !didReconnectLocalPeers {
+            didReconnectLocalPeers = true
+            Task { @MainActor [weak self] in
+                // Restore ordinary local workspaces first, then attach live remote projections.
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                self?.localPeerCoordinator.reconnectSaved()
+            }
+        }
     }
 
     /// In release builds, once per Mac after the first main window is up. Tests

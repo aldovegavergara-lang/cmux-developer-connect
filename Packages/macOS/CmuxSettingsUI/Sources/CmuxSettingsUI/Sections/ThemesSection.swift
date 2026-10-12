@@ -16,7 +16,6 @@ public struct ThemesSection: View {
     @State private var accentColorWriter: AccentColorSettingsFileWriter
     @State private var appIcon: DefaultsValueModel<AppIconMode>
     @State private var adaptiveDefaultTheme: DefaultsValueModel<Bool>
-    @State private var browserTheme: DefaultsValueModel<BrowserThemeMode>
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -52,16 +51,12 @@ public struct ThemesSection: View {
         _accentColorCustomHex = State(initialValue: DefaultsValueModel(store: defaultsStore, key: catalog.app.accentColorCustomHex))
         _appIcon = State(initialValue: DefaultsValueModel(store: defaultsStore, key: catalog.app.appIcon))
         _adaptiveDefaultTheme = State(initialValue: DefaultsValueModel(store: defaultsStore, key: catalog.terminal.adaptiveDefaultTheme))
-        _browserTheme = State(initialValue: DefaultsValueModel(store: defaultsStore, key: catalog.browser.theme))
     }
 
     public var body: some View {
         Group {
             SettingsSectionHeader(String(localized: "settings.section.themes", defaultValue: "Themes"), section: .themes)
             appCard
-            SettingsCard {
-                browserThemeRow
-            }
             // Last: the gallery lists every theme and runs long.
             SettingsCard {
                 adaptiveDefaultThemeRow
@@ -69,7 +64,7 @@ public struct ThemesSection: View {
                 TerminalThemeSettingsRows(hostActions: hostActions)
             }
         }
-        .task { startSettingsObservation([appearance, accentColor, accentColorCustomHex, appIcon, adaptiveDefaultTheme, browserTheme]) }
+        .task { startSettingsObservation([appearance, accentColor, accentColorCustomHex, appIcon, adaptiveDefaultTheme]) }
     }
 
     @ViewBuilder
@@ -173,31 +168,4 @@ public struct ThemesSection: View {
         }
     }
 
-    private var browserThemeRow: some View {
-        SettingsCardRow(
-            configurationReview: .json("browser.theme"),
-            String(localized: "settings.browser.theme", defaultValue: "Browser Theme"),
-            subtitle: String(localized: "settings.browser.theme.subtitle", defaultValue: "Choose light or dark pages for sites that support both. System matches the app appearance."),
-            controlWidth: Self.columnWidth
-        ) {
-            Picker("", selection: Binding(get: { browserTheme.current }, set: { browserTheme.set($0) })) {
-                ForEach(BrowserThemeMode.allCases, id: \.self) { mode in
-                    Text(Self.browserThemeDisplayName(mode)).tag(mode)
-                }
-            }
-            .labelsHidden()
-            .pickerStyle(.menu)
-        }
-    }
-
-    private static func browserThemeDisplayName(_ mode: BrowserThemeMode) -> String {
-        switch mode {
-        case .system:
-            return String(localized: "theme.system", defaultValue: "System")
-        case .light:
-            return String(localized: "theme.light", defaultValue: "Light")
-        case .dark:
-            return String(localized: "theme.dark", defaultValue: "Dark")
-        }
-    }
 }

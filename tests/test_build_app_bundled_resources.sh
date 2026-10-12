@@ -100,9 +100,20 @@ run_app_phase() {
   bash "$ROOT_DIR/scripts/build-app-bundled-resources.sh" "$@"
 }
 
+# Include the Developer service resources required by the production phase.
+mkdir -p "$SRCROOT/Resources/bin/peer"
+for resource in cmux-mobile-share cmux-mobile-menu.py cmux-mobile-menu.html cmux-peer-service.py peer/policy.py peer/http_limits.py; do
+  cp "$ROOT_DIR/Resources/bin/$resource" "$SRCROOT/Resources/bin/$resource"
+done
+
 run_phase > "$TMP_DIR/first.log"
 run_phase > "$TMP_DIR/second.log"
 grep -q 'skipping helper rebuilds' "$TMP_DIR/second.log"
+
+# Missing service modules must invalidate the output stamp and be restored.
+rm "$BUILD_DIR/Resources/bin/peer/http_limits.py"
+run_phase > "$TMP_DIR/peer-module-repair.log"
+cmp "$SRCROOT/Resources/bin/peer/http_limits.py" "$BUILD_DIR/Resources/bin/peer/http_limits.py"
 
 chmod -x "$BUILD_DIR/Resources/bin/ghostty"
 run_phase > "$TMP_DIR/non-executable-helper.log"

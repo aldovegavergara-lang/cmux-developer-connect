@@ -46,17 +46,17 @@ public final class SettingsSectionMountModel {
     /// is an anchor inside the Browser section rather than a section of
     /// its own, so it never appears here.
     public static let displayOrder: [SettingsSectionID] = [
-        .account, .app, .themes, .terminal, .textBox, .sleepyMode, .mobile, .cloudMachines,
+        .app, .themes, .terminal, .textBox, .sleepyMode, .mobile, .cloudMachines,
         .computers, .networking, .sidebarAppearance, .customSidebars, .betaFeatures,
-        .automation, .computerUse, .browser, .globalHotkey, .keyboardShortcuts,
+        .automation, .computerUse, .globalHotkey, .keyboardShortcuts,
         .workspaceColors, .settingsJSON, .reset,
     ]
 
     /// The slot that hosts `section`'s content.
     nonisolated public static func hostSection(for section: SettingsSectionID) -> SettingsSectionID {
         switch section {
-        case .browserImport:
-            return .browser
+        case .account, .browser, .browserImport:
+            return .app
         default:
             return section
         }

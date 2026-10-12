@@ -45,7 +45,7 @@ extension Workspace {
     /// Directory metadata for a cloud-bound or cloud-projected panel is remote
     /// state, even though its transport is not SSH.
     var usesRemoteDirectoryProvenance: Bool {
-        isRemoteWorkspace || isRemoteTmuxMirror || cloudVMBinding != nil ||
+        localPeerBinding != nil || isRemoteWorkspace || isRemoteTmuxMirror || cloudVMBinding != nil ||
             panels.keys.contains(where: { cloudDirectoryProvenanceRequired(panelId: $0) })
     }
 
@@ -68,7 +68,8 @@ extension Workspace {
     }
 
     var presentedCurrentDirectory: String? {
-        usesRemoteDirectoryProvenance ? reportedRemoteCurrentDirectory : normalizedSidebarDirectory(currentDirectory)
+        if let binding = localPeerBinding { return binding.fileRoot(for: self)?.path }
+        return usesRemoteDirectoryProvenance ? reportedRemoteCurrentDirectory : normalizedSidebarDirectory(currentDirectory)
     }
 
     func reportedPanelDirectory(panelId: UUID) -> String? {

@@ -1,0 +1,375 @@
+#!/usr/bin/env python3
+"""Opt-in, session-scoped HTTPS sharing for the personal Developer fork."""
+import argparse
+import base64
+import ipaddress
+import importlib.util
+import json
+import os
+from pathlib import Path
+import secrets
+import shlex
+import shutil
+import signal
+import socket
+import ssl
+import subprocess
+import sys
+import tempfile
+import time
+import urllib.error
+import urllib.request
+import uuid
+import threading
+sys.dont_write_bytecode = True
+
+
+class MobileShare:
+    def __init__(self, state_dir=None, cli=None):
+        self.root = Path(state_dir or Path.home() / '.cmux/developer-mobile')
+        self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
+        info = self.root.lstat()
+        if self.root.is_symlink() or info.st_uid != os.getuid() or info.st_mode & 0o077:
+            raise RuntimeError('El directorio privado debe pertenecer a tu usuario y tener permisos 0700.')
+        self.cli = str(cli or Path(__file__).resolve().with_name('cmux'))
+        self.env = dict(os.environ, CMUX_LOCAL_TMUX_STATE_DIR=str(self.root / 'sessions'))
+        self.env['PATH'] = str(Path.home() / '.local/bin') + ':/opt/homebrew/bin:/usr/local/bin:' + self.env.get('PATH', '')
+
+    def cmux(self, *arguments):
+        result = subprocess.run([self.cli, *arguments, '--json'], env=self.env,
+                                check=True, capture_output=True, text=True)
+        return json.loads(result.stdout)
+
+    @staticmethod
+    def executable(name):
+        if name == 'tailscale':
+            bundled = Path('/Applications/Tailscale.app/Contents/MacOS/Tailscale')
+            if bundled.is_file():
+                return str(bundled)
+        path = shutil.which(name, path=str(Path.home() / '.local/bin') + ':/opt/homebrew/bin:/usr/local/bin:' + os.environ.get('PATH', ''))
+        if not path:
+            raise RuntimeError(f'Falta {name}. Instálalo con Homebrew antes de compartir.')
+        return path
+
+    @staticmethod
+    def validate_bind(address):
+        parsed = ipaddress.ip_address(address)
+        allowed = [ipaddress.ip_network(n) for n in ('127.0.0.0/8', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16')]
+        if not any(parsed in network for network in allowed):
+            raise ValueError('Solo se permite localhost o una dirección IPv4 de red local.')
+        return str(parsed)
+
+    @classmethod
+    def lan_address(cls):
+        route = subprocess.run(['/sbin/route', '-n', 'get', 'default'], capture_output=True, text=True, check=True)
+        interface = next(line.split(':', 1)[1].strip() for line in route.stdout.splitlines() if 'interface:' in line)
+        address = subprocess.run(['/usr/sbin/ipconfig', 'getifaddr', interface], capture_output=True, text=True, check=True).stdout.strip()
+        return cls.validate_bind(address)
+
+    def session(self, name, cwd, command=None):
+        # The CLI owns session incarnation checks; a browser never selects a target.
+        listed = self.cmux('local-tmux', 'list')['sessions']
+        existing = next((entry for entry in listed if entry.get('session_name') == name and entry.get('live')), None)
+        if existing:
+            record = self.cmux('local-tmux', 'status', '--id', existing['id'])
+            record['session_id'] = record['id']
+            return record
+        args = ['local-tmux', 'start', name, '--cwd', str(Path(cwd).resolve()), '--detached']
+        if command:
+            args += ['--command', command]
+        return self.cmux(*args)
+
+    def attach(self, session_id, readonly=False):
+        uuid.UUID(session_id)
+        if readonly:
+            # Read-only tmux clients cannot send terminal keys, including tmux's prefix.
+            record = self.cmux('local-tmux', 'status', '--id', session_id)
+            if not record.get('live'):
+                raise RuntimeError('La sesión ya no está activa.')
+            registry = json.loads((self.root / 'sessions/sessions.json').read_text())
+            saved = next(entry for entry in registry['sessions'] if entry['id'].lower() == session_id.lower())
+            binding = saved['tmuxBinding']
+            server_id = str(uuid.UUID(binding['serverID']))
+            tmux_id = binding['sessionID']
+            if not tmux_id.startswith('$') or not tmux_id[1:].isdigit():
+                raise ValueError('Identidad de sesión inválida.')
+            # Keep identity verification and attach in the same tmux request.
+            # Both server incarnation and session creation must still match.
+            created = int(binding['sessionCreated'])
+            condition = ('#{&&:#{==:#{@cmux_local_server_id},' + server_id + '},'
+                         '#{==:#{session_created},' + str(created) + '}}')
+            action = shlex.join(['attach-session', '-r', '-t', tmux_id])
+            binary = self.executable('tmux')
+            self.env['TMUX'] = ''
+            os.execve(binary, [binary, '-S', str(self.root / 'sessions/server.sock'),
+                              'if-shell', '-t', tmux_id, '-F', condition, action, 'run-shell false'], self.env)
+        os.execve(self.cli, [self.cli, 'local-tmux', 'attach', '--id', session_id, '--headless'], self.env)
+
+    def certificate(self, directory, address):
+        cert, key = directory / 'server.crt', directory / 'server.key'
+        subprocess.run([self.executable('openssl'), 'req', '-x509', '-newkey', 'rsa:2048', '-nodes',
+                        '-days', '1', '-subj', '/CN=cmux Developer Mobile',
+                        '-addext', f'subjectAltName=IP:{address},IP:127.0.0.1,DNS:localhost',
+                        '-keyout', str(key), '-out', str(cert)], check=True, capture_output=True)
+        key.chmod(0o600)
+        fingerprint = subprocess.run([self.executable('openssl'), 'x509', '-in', str(cert),
+                                      '-noout', '-fingerprint', '-sha256'], check=True, capture_output=True, text=True).stdout.strip()
+        return cert, key, fingerprint
+
+    def tailscale_target(self, port):
+        self.env['TAILSCALE_BE_CLI'] = '1'
+        binary = self.executable('tailscale')
+        status = json.loads(subprocess.run([binary, 'status', '--json'], env=self.env,
+                                          capture_output=True, text=True, check=True, timeout=10).stdout)
+        if status.get('BackendState') != 'Running':
+            raise RuntimeError('Conecta Tailscale en el Mac y vuelve a intentar.')
+        domain = (status.get('Self') or {}).get('DNSName', '').rstrip('.')
+        if domain not in (status.get('CertDomains') or []):
+            raise RuntimeError('Primero habilita HTTPS en tu red Tailscale desde su consola.')
+        config = json.loads(subprocess.run([binary, 'serve', 'status', '--json'], env=self.env,
+                                          capture_output=True, text=True, check=True, timeout=10).stdout)
+        # Never replace another service, whether foreground or background.
+        configs = [config, *(config.get('Foreground') or {}).values()]
+        if any(str(port) in entry.get('TCP', {}) for entry in configs):
+            raise RuntimeError(f'Tailscale ya usa el puerto {port}. Elige otro --tail-port.')
+        return binary, f'https://{domain}:{port}'
+
+    @staticmethod
+    def request(url, credential=None, cert=None):
+        context = ssl.create_default_context(cafile=str(cert)) if cert else ssl.create_default_context()
+        headers = {}
+        if credential:
+            headers['Authorization'] = 'Basic ' + base64.b64encode(credential.encode()).decode()
+        return urllib.request.urlopen(urllib.request.Request(url, headers=headers), context=context, timeout=1)
+
+    def serve(self, args):
+        if not args.menu:
+            raise ValueError('El acceso móvil requiere --menu para proteger la conexión y la contraseña.')
+        private_tailnet = args.transport == 'tailscale'
+        if private_tailnet and args.bind != '127.0.0.1':
+            raise ValueError('Con Tailscale el servidor debe escuchar solo en 127.0.0.1.')
+        address = self.validate_bind(args.bind)
+        ttyd = self.executable('ttyd')
+        self.executable('tmux')
+        if not 1 <= args.minutes <= 480:
+            raise ValueError('La duración debe estar entre 1 y 480 minutos.')
+        if not 1024 <= args.port <= 65535:
+            raise ValueError('El puerto debe estar entre 1024 y 65535.')
+        if not 1024 <= args.tail_port <= 65535:
+            raise ValueError('El puerto de Tailscale debe estar entre 1024 y 65535.')
+        tail_binary, tail_url = self.tailscale_target(args.tail_port) if private_tailnet else (None, None)
+        # Fail before touching a terminal if the selected interface/port is unavailable.
+        with socket.socket() as probe:
+            probe.bind((address, args.port))
+        record = self.session(args.session, args.cwd, args.command)
+        session_id = record['session_id']
+        credential = 'developer:' + secrets.token_urlsafe(24)
+        expires_at = time.time() + args.minutes * 60
+        if args.reuse_pairing:
+            pairing_path = Path(args.reuse_pairing)
+            info = pairing_path.lstat()
+            if pairing_path.is_symlink() or info.st_uid != os.getuid() or info.st_mode & 0o077:
+                raise RuntimeError('El archivo de conexión debe ser privado (0600).')
+            prior = json.loads(pairing_path.read_text())
+            if prior['session_id'].lower() != session_id.lower() or prior['readonly'] != args.readonly:
+                raise RuntimeError('La conexión anterior pertenece a otra sesión o modo de acceso.')
+            password = prior['password']
+            if not isinstance(password, str) or len(password) != 32 or not all(c.isalnum() or c in '_-' for c in password):
+                raise RuntimeError('La clave anterior no tiene un formato válido.')
+            expires_at = float(prior['expires_at'])
+            if expires_at <= time.time() or expires_at > time.time() + 480 * 60:
+                raise RuntimeError('La conexión anterior ha caducado.')
+            credential = 'developer:' + password
+        directory = Path(tempfile.mkdtemp(prefix='share-', dir=self.root))
+        process = None
+        tail_process = None
+        menu_server = None
+        previous = {}
+        for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
+            previous[sig] = signal.signal(sig, lambda *_: (_ for _ in ()).throw(KeyboardInterrupt()))
+        try:
+            cert, key, fingerprint = self.certificate(directory, address) if not private_tailnet else (None, None, None)
+            ttyd_port = args.port
+            if args.menu:
+                spec = importlib.util.spec_from_file_location('cmux_mobile_menu', Path(__file__).with_name('cmux-mobile-menu.py'))
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                app_socket = args.app_socket or os.environ.get('CMUX_SOCKET_PATH')
+                if not app_socket:
+                    raise RuntimeError('El menú necesita el socket de esta versión de cmux.')
+                menu = module.NativeSessionMenu(app_socket, args.readonly, expires_at)
+                terminal_socket = directory / 'term.sock'
+                context = None
+                if cert:
+                    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+                    context.minimum_version = ssl.TLSVersion.TLSv1_2
+                    context.load_cert_chain(str(cert), str(key))
+                menu_server = module.MenuHTTPServer((address, args.port), menu, credential,
+                    Path(__file__).with_name('cmux-mobile-menu.html'), terminal_socket=terminal_socket, tls_context=context)
+            argv = [ttyd, '-i', str(terminal_socket), '-H', 'X-Cmux-Authenticated', '-O', '-m', '2',
+                    '-t', 'titleFixed=cmux Developer · Mobile',
+                    '-t', 'fontSize=15', '-t', 'fontFamily=Menlo,monospace',
+                    '-t', 'theme={"background":"#141824","foreground":"#dae0ed","cursor":"#bbadff"}']
+            if args.menu:
+                argv += ['-b', '/terminal']
+            if cert and not args.menu:
+                argv += ['-S', '-C', str(cert), '-K', str(key)]
+            if not args.readonly:
+                argv += ['-W']
+            argv += [sys.executable, '-I', '-B', str(Path(__file__).resolve()), 'attach', '--state-dir', str(self.root),
+                     '--cli', self.cli, '--session-id', session_id]
+            if args.readonly:
+                argv += ['--readonly']
+            log = open(directory / 'ttyd.log', 'w')
+            process = subprocess.Popen(argv, env=self.env, stdout=log, stderr=log, start_new_session=True)
+            log.close()
+            if menu_server:
+                threading.Thread(target=menu_server.serve_forever, daemon=True).start()
+            local_url = f'{"http" if private_tailnet else "https"}://{address}:{args.port}'
+            url = tail_url or local_url
+            deadline = time.monotonic() + 15
+            while True:
+                if process.poll() is not None:
+                    raise RuntimeError('El servidor HTTPS no pudo iniciar. Revisa el puerto y ttyd.')
+                if not terminal_socket.exists():
+                    if time.monotonic() >= deadline: raise RuntimeError('El socket privado del terminal no pudo iniciar.')
+                    time.sleep(0.03)
+                    continue
+                terminal_socket.chmod(0o600)
+                try:
+                    with self.request(local_url, credential, cert) as response:
+                        if response.status == 200:
+                            break
+                except (OSError, urllib.error.URLError):
+                    if time.monotonic() >= deadline:
+                        raise RuntimeError('El servidor no respondió a tiempo.')
+                    time.sleep(0.1)  # bounded readiness probe, not a UI settle delay
+            if private_tailnet:
+                with open(directory / 'tailscale.log', 'w') as tail_log:
+                    # Foreground Serve has an ephemeral lease; closing this process
+                    # revokes only this listener. Never use Funnel or serve reset.
+                    tail_process = subprocess.Popen([tail_binary, 'serve', '--yes',
+                        f'--https={args.tail_port}', local_url], env=self.env,
+                        stdout=tail_log, stderr=tail_log, start_new_session=True)
+                deadline = time.monotonic() + 40
+                while True:
+                    if tail_process.poll() is not None:
+                        raise RuntimeError('Tailscale Serve no pudo iniciar el enlace privado.')
+                    try:
+                        with self.request(url, credential) as response:
+                            if response.status == 200:
+                                break
+                    except (OSError, urllib.error.URLError):
+                        if time.monotonic() >= deadline:
+                            raise RuntimeError('El enlace HTTPS de Tailscale no respondió a tiempo.')
+                        time.sleep(0.2)
+            details = {'url': url, 'username': 'developer', 'password': credential.split(':', 1)[1],
+                       'session_id': session_id, 'session_name': args.session, 'pid': process.pid,
+                       'certificate': str(cert) if cert else None, 'fingerprint': fingerprint, 'readonly': args.readonly,
+                       'transport': args.transport, 'local_url': local_url,
+                       'expires_at': expires_at, 'menu': bool(args.menu)}
+            pairing = directory / 'pairing.json'
+            with open(pairing, 'x', opener=lambda path, flags: os.open(path, flags, 0o600)) as output:
+                json.dump(details, output)
+            # This path is private local metadata, never a served endpoint.
+            print(f'PAIRING_FILE={pairing}', flush=True)
+            print('\n  cmux Developer · Sesión móvil\n', flush=True)
+            print(f'  {url}\n  Usuario: developer\n  Clave: {details["password"]}\n', flush=True)
+            if fingerprint:
+                print(f'  {fingerprint}\n', flush=True)
+            qrencode = shutil.which('qrencode', path=self.env['PATH'])
+            if qrencode:
+                subprocess.run([qrencode, '-t', 'ANSIUTF8', url], check=True)
+            mode = 'solo lectura' if args.readonly else 'control de la terminal'
+            instructions = ('Android: conecta Tailscale → Chrome → enlace → clave.\n'
+                            '  Enlace privado; HTTPS válido, sin advertencias de certificado.' if private_tailnet else
+                            'Android: misma Wi-Fi → Chrome → enlace → comprobar certificado → clave.\n'
+                            '  Certificado local autofirmado: verifica su huella antes de ingresar la clave.')
+            print(f'\n  Acceso: {mode}. Caduca en {args.minutes} minutos.\n  {instructions}\n'
+                  '  Ctrl+C deja de compartir; la sesión de trabajo sigue viva.\n', flush=True)
+            if menu_server:
+                print('  Sesiones: usa el menú superior del celular para elegir un espacio de trabajo.\n', flush=True)
+            if args.workspace:
+                attach_command = ' '.join(shlex.quote(value) for value in
+                    [sys.executable, '-I', '-B', str(Path(__file__).resolve()), 'attach', '--state-dir', str(self.root),
+                     '--cli', self.cli, '--session-id', session_id])
+                subprocess.run([self.cli, 'new-pane', '--workspace', args.workspace, '--type', 'terminal',
+                                '--direction', 'right', '--command', attach_command], env=self.env, check=True)
+            try:
+                process.wait(timeout=max(0.1, expires_at - time.time()))
+            except (subprocess.TimeoutExpired, KeyboardInterrupt):
+                pass
+        finally:
+            for sig, handler in previous.items():
+                signal.signal(sig, handler)
+            if tail_process and tail_process.poll() is None:
+                tail_process.terminate()
+                try:
+                    tail_process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    tail_process.kill()
+                    tail_process.wait()
+            if menu_server:
+                menu_server.shutdown()
+                menu_server.server_close()
+            if process and process.poll() is None:
+                # Kill only this share's process group, including attached browser
+                # clients. The persistent tmux server is a different process group.
+                os.killpg(process.pid, signal.SIGTERM)
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    os.killpg(process.pid, signal.SIGKILL)
+                    process.wait()
+            shutil.rmtree(directory)
+            print('\n  Acceso móvil cerrado. La sesión permanece disponible.\n', flush=True)
+
+    def wizard(self, args):
+        print('\ncmux Developer · Compartir una sesión con Android\n'
+              'Se comparte una sesión persistente por HTTPS privado con Tailscale.\n'
+              'Quien tenga la clave y controle la terminal podrá ejecutar comandos como tu usuario.\n')
+        args.session = input('Nombre [mobile-codex]: ').strip() or 'mobile-codex'
+        args.readonly = input('Permitir escribir desde el celular [s/N]: ').strip().lower() not in ('s', 'si', 'sí', 'y')
+        args.transport = 'tailscale'
+        args.bind = '127.0.0.1'
+        args.command = shlex.quote(self.executable('codex'))
+        args.workspace = os.environ.get('CMUX_WORKSPACE_ID')
+        args.menu = True
+        self.serve(args)
+
+
+def main():
+    parser = argparse.ArgumentParser(description='Developer: compartir una sesión persistente por HTTPS.')
+    parser.add_argument('action', choices=['serve', 'wizard', 'attach'])
+    parser.add_argument('--state-dir')
+    parser.add_argument('--cli')
+    parser.add_argument('--session', default='mobile-codex')
+    parser.add_argument('--session-id')
+    parser.add_argument('--cwd', default=str(Path.home()))
+    parser.add_argument('--command')
+    parser.add_argument('--bind', default='127.0.0.1')
+    parser.add_argument('--transport', choices=['lan', 'tailscale'], default='lan')
+    parser.add_argument('--tail-port', type=int, default=8443)
+    parser.add_argument('--port', type=int, default=7681)
+    parser.add_argument('--minutes', type=int, default=60)
+    parser.add_argument('--readonly', action='store_true')
+    parser.add_argument('--workspace')
+    parser.add_argument('--menu', action='store_true')
+    parser.add_argument('--app-socket')
+    parser.add_argument('--reuse-pairing')
+    args = parser.parse_args()
+    share = MobileShare(args.state_dir, args.cli)
+    if args.action == 'attach':
+        share.attach(args.session_id, args.readonly)
+    elif args.action == 'wizard':
+        share.wizard(args)
+    else:
+        share.serve(args)
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except (RuntimeError, ValueError, subprocess.CalledProcessError, OSError, EOFError) as error:
+        print(f'Error: {error}', file=sys.stderr)
+        sys.exit(1)

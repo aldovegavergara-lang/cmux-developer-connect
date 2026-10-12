@@ -175,7 +175,14 @@ final class FileExplorerNode: Identifiable {
     let name: String
     let path: String
     let isDirectory: Bool
-    var children: [FileExplorerNode]?
+    var children: [FileExplorerNode]? {
+        didSet {
+            cachedSortedChildren = nil
+            childrenRevision &+= 1
+        }
+    }
+    private(set) var childrenRevision: UInt64 = 0
+    private var cachedSortedChildren: [FileExplorerNode]?
     var isLoading: Bool = false
     var error: String?
     var resourceContextID: UUID?
@@ -190,10 +197,16 @@ final class FileExplorerNode: Identifiable {
     var isExpandable: Bool { isDirectory }
 
     var sortedChildren: [FileExplorerNode]? {
-        children?.sorted { a, b in
+        guard let children else { return nil }
+        if let cachedSortedChildren { return cachedSortedChildren }
+        // NSOutlineView asks for each child separately. Sort once per listing,
+        // rather than re-sorting a large directory for every visible row.
+        let sorted = children.sorted { a, b in
             if a.isDirectory != b.isDirectory { return a.isDirectory }
             return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
         }
+        cachedSortedChildren = sorted
+        return sorted
     }
 }
 
@@ -246,6 +259,7 @@ protocol SSHFileExplorerTransport: AnyObject {
 
 enum FileExplorerWorkspaceRoot: Equatable {
     case none
+    case peer(LocalPeerFileRoot)
     case local(workspaceId: UUID, path: String)
     case remoteSSH(
         workspaceId: UUID,
@@ -268,11 +282,31 @@ enum FileExplorerWorkspaceRoot: Equatable {
 
 // MARK: - Local Provider
 
-final class LocalFileExplorerProvider: FileExplorerProvider {
+final class LocalFileExplorerProvider: FileExplorerProvider, @unchecked Sendable {
+    nonisolated private static let diskReads: OperationQueue = {
+        let queue = OperationQueue()
+        queue.name = "cmux.file-explorer.disk-reads"
+        queue.qualityOfService = .utility
+        queue.maxConcurrentOperationCount = 2
+        return queue
+    }()
+    private let read: @Sendable (String, Bool) throws -> [FileExplorerEntry]
+    init(read: (@Sendable (String, Bool) throws -> [FileExplorerEntry])? = nil) {
+        self.read = read ?? Self.readSystemDirectory
+    }
     var homePath: String { NSHomeDirectory() }
     var isAvailable: Bool { true }
 
     func listDirectory(path: String, showHidden: Bool) async throws -> [FileExplorerEntry] {
+        let read = self.read
+        return try await withCheckedThrowingContinuation { continuation in
+            Self.diskReads.addOperation {
+                do { continuation.resume(returning: try read(path, showHidden)) }
+                catch { continuation.resume(throwing: error) }
+            }
+        }
+    }
+    nonisolated private static func readSystemDirectory(_ path: String, _ showHidden: Bool) throws -> [FileExplorerEntry] {
         let fm = FileManager.default
         let contents = try fm.contentsOfDirectory(atPath: path)
         return contents.compactMap { name in
@@ -807,6 +841,10 @@ final class FileExplorerStore: ObservableObject {
     }
 
     var displayRootPath: String {
+        if let peer = provider as? LocalPeerFileProvider, !rootPath.isEmpty {
+            // The provider's home is its allowed CWD, not the remote user's home.
+            return URL(fileURLWithPath: rootPath).lastPathComponent + " · " + peer.displayTarget
+        }
         if rootPath.isEmpty, let cloudProvider = provider as? CloudVMFileExplorerProvider {
             return cloudProvider.displayTarget
         }
@@ -826,6 +864,14 @@ final class FileExplorerStore: ObservableObject {
         sshTransport: SSHFileExplorerTransport = ProcessSSHFileExplorerTransport.shared
     ) {
         switch request {
+        case .peer(let root):
+            cancelRemoteHomeResolution(); setRootStatusMessage(nil); setWorkspaceRootIdentity(root.workspaceID)
+            let next = LocalPeerFileProvider(root)
+            if (provider as? LocalPeerFileProvider)?.remoteIdentity != next.remoteIdentity ||
+               (provider as? LocalPeerFileProvider)?.homePath != next.homePath {
+                setRootPath(""); setProvider(next, reloadIfAvailable: false)
+            }
+            setRootPath(root.path)
         case .none:
             workspaceRootObservation?.stop(); workspaceRootObservation = nil
             cancelRemoteHomeResolution(); setRootStatusMessage(nil); setWorkspaceRootIdentity(nil)

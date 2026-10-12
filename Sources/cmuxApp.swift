@@ -895,6 +895,29 @@ struct cmuxApp: App {
                     }
                 }
 
+                Button(String(localized: "menu.file.newMobileSession", defaultValue: "New Mobile Session…")) {
+                    // The bundled opt-in helper owns HTTPS, admission and expiry.
+                    // Create a distinct workspace; never type into a live agent.
+                    if let helper = Bundle.main.resourceURL?.appendingPathComponent("bin/cmux-mobile-share") {
+                        let quotedPath = "'" + helper.path.replacingOccurrences(of: "'", with: "'\\''") + "'"
+                        let runtime = Bundle.main.resourceURL?.appendingPathComponent("peer-runtime/bin/python3")
+                        let python = runtime.flatMap { FileManager.default.isExecutableFile(atPath: $0.path) ? $0.path : nil }
+                        let invocation = python.map { "'" + $0.replacingOccurrences(of: "'", with: "'\\''") + "' -I -B" }
+                            ?? "/usr/bin/env python3 -B"
+                        _ = activeTabManager.addWorkspaceIfActive(
+                            title: String(localized: "menu.file.mobileSessionWorkspace", defaultValue: "Mobile Session"),
+                            workingDirectory: FileManager.default.homeDirectoryForCurrentUser.path,
+                            initialTerminalCommand: "\(invocation) \(quotedPath) wizard",
+                            initialTerminalEnvironment: ["PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"],
+                            autoWelcomeIfNeeded: false
+                        )
+                    }
+                }
+
+                Button(String(localized: "peer.title", defaultValue: "Trusted Computers…")) {
+                    appDelegate.localPeerWindow.showWindow(nil)
+                }
+
                 if offersBrowserMenuItems {
                     splitCommandButton(title: String(localized: "menu.file.newBrowserWorkspace", defaultValue: "New Browser Workspace"), shortcut: menuShortcut(for: .newBrowserWorkspace)) {
                         if let appDelegate = AppDelegate.shared {

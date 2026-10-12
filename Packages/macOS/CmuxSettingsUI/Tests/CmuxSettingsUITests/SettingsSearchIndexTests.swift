@@ -90,7 +90,7 @@ struct SettingsSearchIndexTests {
         let sectionCount = result.filter {
             if case .section = $0.kind { return true } else { return false }
         }.count
-        #expect(sectionCount == SettingsSectionID.allCases.count)
+        #expect(sectionCount == SettingsSectionID.allCases.filter(\.isAvailable).count)
         #expect(result.contains { $0.id == "section:computers" })
     }
 
@@ -159,9 +159,7 @@ struct SettingsSearchIndexTests {
         })
     }
 
-    /// Every Browser Memory Saver row is searchable. A main merge once took
-    /// main's curated entries and dropped the mode, budget and auto-restore
-    /// rows, so search pointed only at the old toggle and delay.
+    /// Settings for the removed browser must not appear in search.
     @Test(arguments: [
         ("Browser Memory Saver", "setting:browser:hidden-webview-discard"),
         ("Memory Saver Mode", "setting:browser:hidden-webview-discard-mode"),
@@ -169,13 +167,22 @@ struct SettingsSearchIndexTests {
         ("Memory Saver Delay", "setting:browser:hidden-webview-discard-delay"),
         ("Restore Unloaded Pages", "setting:browser:unloaded-page-auto-restore"),
     ])
-    func browserMemorySaverRowsAreSearchable(query: String, expectedID: String) {
+    func removedBrowserRowsAreNotSearchable(query: String, expectedID: String) {
         let index = SettingsSearchIndex(catalog: SettingCatalog())
         let result = index.match(query)
         #expect(
-            result.contains { $0.id == expectedID },
-            "Expected settings search for '\(query)' to include \(expectedID), got \(result.map(\.id))"
+            !result.contains { $0.id == expectedID },
+            "Removed browser settings must not be searchable"
         )
+    }
+
+    @Test func accountAndBrowserDestinationsAreAbsent() {
+        let index = SettingsSearchIndex(catalog: SettingCatalog())
+        #expect(!index.entries.contains {
+            $0.id.hasPrefix("section:account") || $0.id.hasPrefix("setting:account:")
+                || $0.id.hasPrefix("section:browser") || $0.id.hasPrefix("setting:browser")
+                || $0.id == "setting:themes:browser-theme"
+        })
     }
 
     @Test(arguments: [
@@ -203,12 +210,6 @@ struct SettingsSearchIndexTests {
     }
 
     @Test(arguments: [
-        ("browser settings", [
-            "setting:browser:search-engine",
-            "setting:browser:terminal-links",
-            "setting:browser:http-allowlist",
-            "setting:browser:url-allowlist",
-        ]),
         ("notification settings", [
             "setting:app:dock-badge",
             "setting:app:desktop-notifications",
@@ -217,9 +218,6 @@ struct SettingsSearchIndexTests {
         ]),
         ("shortcut split right", [
             "setting:keyboardShortcuts:shortcuts",
-        ]),
-        ("browzer lniks", [
-            "setting:browser:terminal-links",
         ]),
         ("canvas", [
             "setting:app:canvas-pane-gap",

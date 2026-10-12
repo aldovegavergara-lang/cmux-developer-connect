@@ -7,24 +7,7 @@ extension ContentView {
     static let commandPaletteProWelcomeChecklistCommandId = "palette.pro.welcomeChecklist"
 
     static func commandPaletteProCommandContributions() -> [CommandPaletteCommandContribution] {
-        func constant(_ value: String) -> (CommandPaletteContextSnapshot) -> String {
-            { _ in value }
-        }
-
-        return [
-            CommandPaletteCommandContribution(
-                commandId: commandPaletteProWelcomeChecklistCommandId,
-                title: constant(String(localized: "command.pro.welcomeChecklist.title", defaultValue: "Welcome to cmux Pro")),
-                subtitle: constant(String(localized: "command.auth.subtitle", defaultValue: "Account")),
-                keywords: ["pro", "welcome", "checklist", "onboarding", "cloud", "billing", "ios", "provider"]
-            ),
-            CommandPaletteCommandContribution(
-                commandId: commandPaletteProUpgradeCommandId,
-                title: constant(String(localized: "command.pro.upgrade.title", defaultValue: "Upgrade to cmux Pro")),
-                subtitle: constant(String(localized: "command.auth.subtitle", defaultValue: "Account")),
-                keywords: ["pro", "upgrade", "subscription", "billing", "plan", "pricing", "cloud", "purchase", "buy"]
-            ),
-        ]
+        []
     }
 
     func registerProCommandHandlers(_ registry: inout CommandPaletteHandlerRegistry) {

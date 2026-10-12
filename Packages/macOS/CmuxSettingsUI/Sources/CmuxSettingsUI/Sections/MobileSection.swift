@@ -105,8 +105,6 @@ public struct MobileSection: View {
                 phonePushHideContentRow
                 SettingsCardDivider()
                 Group {
-                    pairDeviceRow
-                    SettingsCardDivider()
                     portRow
                     boundPortStatusRow
                     SettingsCardDivider()
@@ -239,29 +237,6 @@ public struct MobileSection: View {
             .controlSize(.small)
             .disabled(!phonePush.current.forwardingEnabled)
             .accessibilityIdentifier("SettingsMobilePhonePushHideContentToggle")
-        }
-    }
-
-    @ViewBuilder
-    private var pairDeviceRow: some View {
-        SettingsCardRow(
-            configurationReview: .action,
-            searchAnchorID: "setting:mobile:pairDevice",
-            String(localized: "settings.mobile.pairDevice", defaultValue: "Mobile Pairing"),
-            subtitle: String(
-                localized: "settings.mobile.pairDevice.subtitle",
-                defaultValue: """
-                Sign in to cmux on your iPhone with the same account and it \
-                connects automatically. No QR code is needed.
-                """
-            )
-        ) {
-            Button(String(localized: "settings.mobile.pairDevice.button", defaultValue: "Open Pairing…")) {
-                hostActions.openMobilePairingWindow()
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .accessibilityIdentifier("SettingsMobilePairDeviceButton")
         }
     }
 

@@ -47,6 +47,11 @@ public enum SettingsSectionID: String, CaseIterable, Identifiable, Sendable, Has
 
     public var id: Self { self }
 
+    /// Whether this section is offered by the local terminal edition.
+    public var isAvailable: Bool {
+        self != .account && self != .browser && self != .browserImport
+    }
+
     /// Maps the catalog-owned destination into this package's navigation id.
     ///
     /// Keep this switch exhaustive as UserFacingSettingSection grows so

@@ -54,7 +54,6 @@ extension Array where Element == CuratedSettingEntry {
                     defaultValue: "terminal.adaptiveDefaultTheme adaptive default theme appearance light dark palette Ghostty managed colors empty untouched config preserve settings"
                 )
             ),
-            .init(section: .themes, id: "browser-theme", title: String(localized: "settings.browser.theme", defaultValue: "Browser Theme"), synonyms: "Browser Theme browser.theme web page theme color scheme light dark system"),
 
             // App
             .init(section: .app, id: "language", title: String(localized: "settings.app.language", defaultValue: "Language"), synonyms: "Language app.language locale l10n localization translation japanese english ja en nihongo restart"),
@@ -380,15 +379,6 @@ extension Array where Element == CuratedSettingEntry {
             .init(section: .sidebarAppearance, id: "right-max-width", title: String(localized: "settings.sidebar.rightMaxWidth", defaultValue: "Dock Max Width"), synonyms: "Dock Max Width sidebar.rightMaxWidth dock right sidebar max width terminal reservation cap logs lazygit"),
 
             // Mobile
-            .init(
-                section: .mobile,
-                id: "pairDevice",
-                title: String(localized: "settings.mobile.pairDevice", defaultValue: "Mobile Pairing"),
-                synonyms: """
-                pair pairing add device qr qr code scan iphone ipad ios mobile \
-                tailscale iroh connect onboarding sign in
-                """
-            ),
             .init(
                 section: .mobile,
                 id: "phone-push-forwarding",

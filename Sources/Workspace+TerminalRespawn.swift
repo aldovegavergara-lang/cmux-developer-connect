@@ -23,6 +23,7 @@ extension Workspace {
         allowTextBoxFocusDefault: Bool = true,
         nativeReservation: CloudTerminalPaneReservation? = nil
     ) -> TerminalPanel? {
+        guard localPeerBinding == nil else { return nil }
         // Native ownership routes through its provider before any local process configuration.
         if machineOwningSurface(panelId)?.isSSH == true, nativeReservation == nil {
             return respawnSSHTuiSurface(panelID: panelId, command: command,

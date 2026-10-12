@@ -170,7 +170,7 @@ public struct MobileTerminalRenderGridFrame: Codable, Equatable, Sendable {
                 throw MobileTerminalRenderGridError.invalidStyleID(span.styleID)
             }
             let width = span.gridCellWidth
-            guard width > 0, span.column + width <= columns else {
+            guard width > 0, width <= columns - span.column else {
                 throw MobileTerminalRenderGridError.invalidSpanWidth(
                     row: span.row,
                     column: span.column,
@@ -191,7 +191,7 @@ public struct MobileTerminalRenderGridFrame: Codable, Equatable, Sendable {
                 throw MobileTerminalRenderGridError.invalidStyleID(span.styleID)
             }
             let width = span.gridCellWidth
-            guard width > 0, span.column + width <= columns else {
+            guard width > 0, width <= columns - span.column else {
                 throw MobileTerminalRenderGridError.invalidSpanWidth(
                     row: span.row,
                     column: span.column,

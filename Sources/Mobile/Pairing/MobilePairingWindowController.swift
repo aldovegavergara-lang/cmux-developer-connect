@@ -35,6 +35,7 @@ final class MobilePairingWindowController: ReleasingWindowController {
 
     /// Brings the pairing window to the front, creating it if needed.
     func show() {
+        guard CmuxFeatureFlags.shared.isSidebarAccountButtonEnabled else { return }
         NSApp.activate(ignoringOtherApps: true)
 
         let window = managedWindow()

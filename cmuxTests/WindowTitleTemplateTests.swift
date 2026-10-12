@@ -47,7 +47,7 @@ struct WindowTitleTemplateTests {
         #expect(manager.selectedWorkspace?.title == title)
         // No run-loop turn or follow-up rename: the creation response must
         // already expose the name to AppKit/window-manager consumers.
-        #expect(window.title == title)
+        #expect(window.title == "cmux Developer — \(title)")
     }
 
     @Test func resolvesWindowPlaceholdersAndPreservesUnknownPlaceholders() throws {
@@ -237,13 +237,13 @@ struct WindowTitleTemplateTests {
         }
 
         manager.refreshWindowTitle()
-        #expect(window.title == "[cmux:01234567] /tmp/old")
+        #expect(window.title == "cmux Developer — [cmux:01234567] /tmp/old")
 
         let workspace = try #require(manager.tabs.first)
         let panelId = try #require(workspace.focusedPanelId)
         #expect(workspace.updatePanelDirectory(panelId: panelId, directory: "/tmp/new"))
         manager.workspaceCurrentDirectoryDidChange(workspaceId: workspace.id)
-        #expect(window.title == "[cmux:01234567] /tmp/new")
+        #expect(window.title == "cmux Developer — [cmux:01234567] /tmp/new")
     }
 
     @MainActor
@@ -287,7 +287,7 @@ struct WindowTitleTemplateTests {
 
         #expect(workspace.updatePanelDirectory(panelId: remotePanelId, directory: localDirectory))
         manager.refreshWindowTitle()
-        #expect(window.title == "[cmux:01234567] \(localDirectory)")
+        #expect(window.title == "cmux Developer — [cmux:01234567] \(localDirectory)")
 
         workspace.configureRemoteConnection(
             WorkspaceRemoteConfiguration(
@@ -304,21 +304,21 @@ struct WindowTitleTemplateTests {
             ),
             autoConnect: false
         )
-        #expect(window.title == "[cmux:01234567]")
+        #expect(window.title == "cmux Developer — [cmux:01234567]")
 
         workspace.updatePanelDirectory(panelId: remotePanelId, directory: localDirectory)
-        #expect(window.title == "[cmux:01234567]")
+        #expect(window.title == "cmux Developer — [cmux:01234567]")
 
         workspace.applyRemoteConnectionStateUpdate(.connected, detail: nil, target: "seepine@192.168.5.20")
         manager.updateReportedSurfaceDirectory(tabId: workspace.id, surfaceId: remotePanelId, directory: remoteDirectory)
-        #expect(window.title == "[cmux:01234567] \(remoteDirectory)")
+        #expect(window.title == "cmux Developer — [cmux:01234567] \(remoteDirectory)")
 
         workspace.updatePanelDirectory(panelId: remotePanelId, directory: localDirectory)
-        #expect(window.title == "[cmux:01234567] \(remoteDirectory)")
+        #expect(window.title == "cmux Developer — [cmux:01234567] \(remoteDirectory)")
 
         workspace.disconnectRemoteConnection()
         manager.refreshWindowTitle()
-        #expect(window.title == "[cmux:01234567]")
+        #expect(window.title == "cmux Developer — [cmux:01234567]")
         #expect(manager.gitProbeDirectory(for: workspace, panelId: remotePanelId) == nil)
     }
 
@@ -389,11 +389,11 @@ struct WindowTitleTemplateTests {
         workspace.focusPanel(localPanel.id)
         #expect(workspace.presentedCurrentDirectory == localTerminalDirectory)
         manager.refreshWindowTitle()
-        #expect(window.title == "[cmux:01234567] \(localTerminalDirectory)")
+        #expect(window.title == "cmux Developer — [cmux:01234567] \(localTerminalDirectory)")
 
         workspace.focusPanel(remotePanelId)
         manager.refreshWindowTitle()
-        #expect(window.title == "[cmux:01234567] \(remoteDirectory)")
+        #expect(window.title == "cmux Developer — [cmux:01234567] \(remoteDirectory)")
     }
 
     @MainActor

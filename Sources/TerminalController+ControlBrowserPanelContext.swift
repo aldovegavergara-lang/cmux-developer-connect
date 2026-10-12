@@ -30,7 +30,7 @@ extension TerminalController: ControlBrowserPanelContext {
     }
 
     func controlBrowserPanelOpenURLExternally(_ url: URL) -> Bool {
-        NSWorkspace.shared.open(url)
+        TerminalLinkOpenCoordinator.openInExternalBrowser(url)
     }
 
     func controlBrowserPanelOpen(url: URL?) -> UUID? {

@@ -4908,24 +4908,14 @@ struct CMUXCLI {
             defaults.set(true, forKey: Self.browserDisabledDefaultsKey)
             defaults.synchronize()
         case "enable", "enable-browser":
-            guard !managedByProfile else {
-                throw CLIError(message: "Browser availability is managed by your organization (MDM policy for domain \(domain)); it cannot be changed from the CLI.")
-            }
-            defaults.set(false, forKey: Self.browserDisabledDefaultsKey)
-            defaults.synchronize()
+            throw CLIError(message: "The embedded browser is disabled in cmux Developer. Open web links in Chrome.")
         case "status", "browser-status":
             break
         default:
             throw CLIError(message: "Unknown browser availability command: \(action)")
         }
 
-        let storedDisabled = defaults.object(forKey: Self.browserDisabledDefaultsKey) == nil
-            ? false
-            : defaults.bool(forKey: Self.browserDisabledDefaultsKey)
-        let disabled = storedDisabled || Self.browserDisabledByManagedPolicy(
-            defaults: defaults,
-            domain: domain
-        )
+        let disabled = true
         let payload: [String: Any] = [
             "enabled": !disabled,
             "disabled": disabled,

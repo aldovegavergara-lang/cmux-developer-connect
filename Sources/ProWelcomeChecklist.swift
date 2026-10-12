@@ -254,6 +254,7 @@ extension ProUpgradePresenter {
     /// same dedicated workspace surface used for pricing, matching upgrade/pricing.
     @MainActor
     static func presentProWelcomeWeb() {
+        guard CmuxFeatureFlags.shared.isSidebarAccountButtonEnabled else { return }
         let url = decoratedAppWebURL(AuthEnvironment.appProWelcomeURL)
         guard BrowserAvailabilitySettings.isEnabled() else {
             NSWorkspace.shared.open(url)

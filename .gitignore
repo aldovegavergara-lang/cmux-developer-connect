@@ -82,3 +82,22 @@ tmux-*.log
 
 # Locally downloaded prebuilt client for Packages/Shared/CmuxTerminalClient
 Packages/Shared/CmuxTerminalClient/CmuxTerminalClient.xcframework/
+
+# Developer fork: machine-specific state and exports never belong in source control
+.env.*
+!.env.example
+!.env.sample
+*.local.json
+*.local.toml
+*.local.yaml
+*.local.yml
+*.local.plist
+*.p12
+*.pfx
+*.keychain
+*.keychain-db
+*.mobileprovision
+.peer-state/
+.peer-runtime/
+/developer-private/
+/publication-reports/

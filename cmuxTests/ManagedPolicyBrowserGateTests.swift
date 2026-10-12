@@ -205,12 +205,12 @@ struct ManagedPolicyBrowserGateTests {
         }
 
         withBrowserPolicy(managed: nil, userDisabled: false) {
-            #expect(BrowserAvailabilitySettings.isEnabled())
+            #expect(!BrowserAvailabilitySettings.isEnabled())
             #expect(
-                BrowserAvailabilitySettings.offersBrowserAffordance(
+                !BrowserAvailabilitySettings.offersBrowserAffordance(
                     isEnabled: BrowserAvailabilitySettings.isEnabled()
                 ),
-                "an enabled browser must still offer its create affordance"
+                "a stored enable preference must not restore the removed browser"
             )
         }
     }
@@ -240,8 +240,8 @@ struct ManagedPolicyBrowserGateTests {
 
         withBrowserPolicy(managed: nil, userDisabled: false) {
             #expect(
-                Workspace.surfaceTabBarBuiltInActionIsAvailable(.newBrowser),
-                "an enabled browser must still offer its tab bar button"
+                !Workspace.surfaceTabBarBuiltInActionIsAvailable(.newBrowser),
+                "a stored enable preference must not restore the globe button"
             )
             // Buttons with no feature gate of their own stay available, so the
             // browser gate cannot be read as a blanket filter.
@@ -290,7 +290,7 @@ struct ManagedPolicyBrowserGateTests {
         defer { center.removeObserver(token) }
 
         let monitor = BrowserAvailabilityMonitor(notificationCenter: center)
-        #expect(monitor.isEnabled)
+        #expect(!monitor.isEnabled)
 
         // An unrelated defaults write must not be broadcast as a change.
         center.post(name: UserDefaults.didChangeNotification, object: nil)
@@ -300,13 +300,13 @@ struct ManagedPolicyBrowserGateTests {
         defaults.set(true, forKey: BrowserAvailabilitySettings.disabledKey)
         center.post(name: UserDefaults.didChangeNotification, object: nil)
         await drainMainQueue()
-        #expect(recorder.count == 1, "a real transition was not broadcast")
+        #expect(recorder.count == 0, "the local fork must remain disabled after a defaults write")
         #expect(!monitor.isEnabled)
 
         // Re-signalling the same state stays silent.
         center.post(name: UserDefaults.didChangeNotification, object: nil)
         await drainMainQueue()
-        #expect(recorder.count == 1, "an unchanged gate was broadcast again")
+        #expect(recorder.count == 0, "an unchanged gate was broadcast again")
     }
 
     /// Lets main-queue notification delivery settle. Two turns: the monitor

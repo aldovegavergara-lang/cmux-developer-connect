@@ -46,6 +46,11 @@ sanitize_path() {
 
 tag_slug="$(sanitize_path "$CMUX_TAG")"
 tag_bundle_id="$(sanitize_bundle "$CMUX_TAG")"
+tag_app_name="${CMUX_DEBUG_APP_NAME:-cmux DEV ${tag_slug}}"
+if [[ "$tag_app_name" == */* ]]; then
+  echo "CMUX_DEBUG_APP_NAME must be an app name, not a path" >&2
+  exit 2
+fi
 
 socket_path="/tmp/cmux-debug-${tag_slug}.sock"
 if [[ ! -S "$socket_path" ]]; then
@@ -65,14 +70,14 @@ if [[ "$derived_data" != /* ]]; then
   echo "error: CMUX_DERIVED_DATA must be an absolute path, got '$derived_data'" >&2
   exit 1
 fi
-cli_path="${derived_data}/Build/Products/Debug/cmux DEV ${tag_slug}.app/Contents/Resources/bin/cmux"
+cli_path="${derived_data}/Build/Products/Debug/${tag_app_name}.app/Contents/Resources/bin/cmux"
 # reload.sh --release builds the same tagged app under Build/Products/Release.
-release_cli_path="${derived_data}/Build/Products/Release/cmux DEV ${tag_slug}.app/Contents/Resources/bin/cmux"
+release_cli_path="${derived_data}/Build/Products/Release/${tag_app_name}.app/Contents/Resources/bin/cmux"
 if [[ ! -x "$cli_path" && -x "$release_cli_path" ]]; then
   cli_path="$release_cli_path"
 fi
 # A fleet build restored with `cmux-ci publish-hq` lives in the HQ Tag Opener cache.
-cached_cli_path="${HOME}/Library/Application Support/cmux/tag-app-cache/cmux-${tag_slug}/cmux DEV ${tag_slug}.app/Contents/Resources/bin/cmux"
+cached_cli_path="${HOME}/Library/Application Support/cmux/tag-app-cache/cmux-${tag_slug}/${tag_app_name}.app/Contents/Resources/bin/cmux"
 if [[ ! -x "$cli_path" && -x "$cached_cli_path" ]]; then
   cli_path="$cached_cli_path"
 fi

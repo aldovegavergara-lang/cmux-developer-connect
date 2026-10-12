@@ -94,6 +94,10 @@ struct TerminalPanelView: View {
         @Bindable var textBoxState = panel.textBoxState
 
         return VStack(spacing: 0) {
+            if let mirror = Workspace.liveWorkspace(id: panel.workspaceId)?.localPeerBinding?.mirrors.values
+                .first(where: { $0.panel?.id == panel.id }) {
+                LocalPeerConnectionBanner(mirror: mirror)
+            }
             if let recovery = panel.restoreRecovery.state {
                 AgentRestoreRecoveryView(
                     state: recovery,
@@ -501,5 +505,25 @@ struct PanelAppearance {
         usesTransparentWindow: Bool
     ) -> Bool {
         usesTransparentWindow || usesGhosttyGlassStyle || opacity < 0.999
+    }
+}
+
+private struct LocalPeerConnectionBanner: View {
+    @ObservedObject var mirror: LocalPeerMirror
+    var body: some View {
+        if !mirror.connected {
+            HStack(spacing: 8) {
+                Image(systemName: mirror.hasConnected ? "wifi.slash" : "network")
+                Text(mirror.hasConnected
+                    ? String(localized: "peer.connectionInterrupted", defaultValue: "Connection interrupted. Waiting for the original Mac…")
+                    : String(localized: "peer.connectingSession", defaultValue: "Connecting to the original session…"))
+                Spacer()
+            }
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(Color(red: 0.63, green: 0.77, blue: 0.80))
+            .padding(.horizontal, 12).padding(.vertical, 8)
+            .background(Color(red: 0.16, green: 0.22, blue: 0.27))
+            .accessibilityIdentifier("peer.sessionConnectionState")
+        }
     }
 }

@@ -33,6 +33,7 @@ extension Workspace {
         flow: any AccountSignInFlow,
         focus: Bool = true
     ) -> AccountSignInPanel? {
+        guard CmuxFeatureFlags.shared.isSidebarAccountButtonEnabled else { return nil }
         let panel = AccountSignInPanel(flow: flow)
         panels[panel.id] = panel
         panelTitles[panel.id] = panel.displayTitle

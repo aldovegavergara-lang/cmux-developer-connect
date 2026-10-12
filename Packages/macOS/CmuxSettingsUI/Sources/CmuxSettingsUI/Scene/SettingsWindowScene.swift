@@ -40,19 +40,20 @@ public struct SettingsWindowRoot: View {
     ) {
         self.runtime = runtime
         self.searchIndex = runtime.searchIndex
-        self.initialSection = initialSection
-        _pendingInitialSection = State(initialValue: initialSection)
+        let resolvedInitialSection = initialSection.map(SettingsSectionMountModel.hostSection(for:))
+        self.initialSection = resolvedInitialSection
+        _pendingInitialSection = State(initialValue: resolvedInitialSection)
         _searchQuery = State(initialValue: SettingsSearchQuery(index: runtime.searchIndex))
         // The `@AppStorage` properties below read the same store; the restore
         // target has to be known before the first body evaluation because
         // that pass runs inside `NSWindow(contentViewController:)`.
         let defaults = UserDefaults.standard
         let restoredSection = defaults.string(forKey: Self.selectedSectionDefaultsKey)
-            .flatMap(SettingsSectionID.init(rawValue:)) ?? .account
+            .flatMap(SettingsSectionID.init(rawValue:)) ?? .app
         let cloudAvailable = !ManagedDevicePolicy().isEnforced(.disableCloud)
             && runtime.hostActions.isCloudMachinesAvailable
         _mountModel = State(initialValue: mountModel ?? SettingsSectionMountModel(
-            initial: initialSection ?? restoredSection,
+            initial: resolvedInitialSection ?? restoredSection,
             order: Self.mountOrder(cloudAvailable: cloudAvailable)
         ))
     }
@@ -86,8 +87,8 @@ public struct SettingsWindowRoot: View {
     // sibling hits inside one section must each be selectable.
     // @AppStorage (not @SceneStorage): the window is AppKit-hosted, so
     // there is no SwiftUI scene to store into (cmux issue #7777).
-    @AppStorage(SettingsWindowRoot.selectedSectionDefaultsKey) private var selectedSectionRaw: String = SettingsSectionID.account.rawValue
-    @AppStorage("selectedSettingsSidebarEntry") private var selectedSidebarEntryID: String = "section:\(SettingsSectionID.account.rawValue)"
+    @AppStorage(SettingsWindowRoot.selectedSectionDefaultsKey) private var selectedSectionRaw: String = SettingsSectionID.app.rawValue
+    @AppStorage("selectedSettingsSidebarEntry") private var selectedSidebarEntryID: String = "section:\(SettingsSectionID.app.rawValue)"
     // Legacy `SettingsRootView` binds `NavigationSplitView`'s
     // `columnVisibility` so the user can collapse the sidebar via the
     // toolbar button (or the SidebarCommands menu) and have that state
@@ -130,10 +131,10 @@ public struct SettingsWindowRoot: View {
         return !cloudDisabledByPolicy && hostActions.isCloudMachinesAvailable
     }
     /// Resolves the selected section pane from the persisted raw value,
-    /// defaulting to ``SettingsSectionID/account`` when the stored value
+    /// defaulting to ``SettingsSectionID/app`` when the stored value
     /// is unrecognized (e.g., after dropping a case).
     var selectedSection: SettingsSectionID {
-        SettingsSectionID(rawValue: selectedSectionRaw) ?? .account
+        SettingsSectionMountModel.hostSection(for: SettingsSectionID(rawValue: selectedSectionRaw) ?? .app)
     }
     /// The section whose pane the detail shows.
     var activeSection: SettingsSectionID {
@@ -251,7 +252,7 @@ public struct SettingsWindowRoot: View {
             _ = mountModel.skip(.cloudMachines)
         }
         if !isCloudSectionAvailable && selectedSection == .cloudMachines {
-            navigate(to: .account)
+            navigate(to: .app)
         }
     }
 
@@ -329,7 +330,8 @@ public struct SettingsWindowRoot: View {
     /// matches the currently selected setting hit — so the highlighted
     /// sidebar row stays put while the detail pane snaps to the
     /// section.
-    private func navigate(to target: SettingsSectionID, preferSectionSelection: Bool = true) {
+    private func navigate(to requestedSection: SettingsSectionID, preferSectionSelection: Bool = true) {
+        let target = SettingsSectionMountModel.hostSection(for: requestedSection)
         if selectedSectionRaw != target.rawValue { selectedSectionRaw = target.rawValue }
         if preferSectionSelection {
             let sectionEntry = sectionEntryID(for: target)
@@ -350,7 +352,7 @@ public struct SettingsWindowRoot: View {
     private func parentSection(for entryID: String) -> SettingsSectionID {
         if entryID.hasPrefix("section:") {
             let raw = String(entryID.dropFirst("section:".count))
-            return SettingsSectionID(rawValue: raw) ?? .account
+            return SettingsSectionID(rawValue: raw) ?? .app
         }
         if let entry = searchIndex.entries.first(where: { $0.id == entryID }) {
             if case .setting(let parent) = entry.kind { return parent }

@@ -18,7 +18,7 @@ import Observation
 final class HostAccountFlow: AccountFlow, AccountSignInFlow {
     let coordinator: AuthCoordinator
     private let browserSignIn: HostBrowserSignInFlow
-    var isProUpgradeAvailable: Bool { true }
+    var isProUpgradeAvailable: Bool { false }
     private(set) var billingPlanState = BillingPlanState.unknown
     var isProActive: Bool { billingPlanState.isPro }
     var canManageBilling: Bool { billingPlanState.canManageBilling }
@@ -130,10 +130,12 @@ final class HostAccountFlow: AccountFlow, AccountSignInFlow {
     }
 
     func startSignIn() {
+        guard CmuxFeatureFlags.shared.isSidebarAccountButtonEnabled else { return }
         browserSignIn.beginSignIn()
     }
 
     func startSignInForPane() -> URL? {
+        guard CmuxFeatureFlags.shared.isSidebarAccountButtonEnabled else { return nil }
         browserSignIn.beginSignIn()
         return browserSignIn.activeAttemptSignInURL
     }
@@ -145,7 +147,8 @@ final class HostAccountFlow: AccountFlow, AccountSignInFlow {
     /// Runs the same hosted Stack sign-in used by every UI entrypoint, while
     /// allowing socket callers to await a bounded result.
     func signIn(timeout: TimeInterval) async -> Bool {
-        await browserSignIn.signIn(timeout: timeout)
+        guard CmuxFeatureFlags.shared.isSidebarAccountButtonEnabled else { return false }
+        return await browserSignIn.signIn(timeout: timeout)
     }
 
     /// Issues the manual hosted Stack sign-in URL through the same callback

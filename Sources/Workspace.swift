@@ -860,7 +860,7 @@ extension Workspace {
         )
     }
     private func closedPanelHistoryEntry(panelId: UUID, tabId: TabID, pane: PaneID) -> ClosedPanelHistoryEntry? {
-        guard !suppressClosedPanelHistory else { return nil }
+        guard !suppressClosedPanelHistory, localPeerBinding == nil else { return nil }
         owningTabManager?.flushPendingPanelTitleUpdatesForWorkspaceSnapshot()
         guard let tabIndex = bonsplitController.tabs(inPane: pane).firstIndex(where: { $0.id == tabId }) else {
             return nil
@@ -2237,7 +2237,7 @@ extension Workspace {
             if deferBrowserPanelsDuringSessionRestore,
                snapshot.browser != nil,
                !isRemoteTmuxMirror,
-               (BrowserAvailabilitySettings.isEnabled() || !BrowserAvailabilitySettings.isManagedByPolicy) {
+               BrowserAvailabilitySettings.isEnabled() {
                 let restoredPanelId = panels[snapshot.id] == nil ? snapshot.id : UUID()
                 let deferredPanel = DeferredBrowserPanel(
                     id: restoredPanelId,
@@ -2713,6 +2713,8 @@ typealias ClosedBrowserPanelRestoreSnapshot = CmuxBrowser.ClosedBrowserPanelRest
 /// Workspace represents a sidebar tab.
 /// Each workspace contains one BonsplitController that manages split panes and nested surfaces.
 final class Workspace: Identifiable, ObservableObject, FilePreviewTabMetadataHost {
+    /// A mirror of another app. Never inherit local PTY creation or persistence.
+    var localPeerBinding: LocalPeerWorkspaceBinding?
     @MainActor var terminalGeometryTransition: TerminalWorkContext.Transition = .unknown
     enum BrowserPanelCreationPolicy {
         case userInitiated
@@ -7055,6 +7057,7 @@ final class Workspace: Identifiable, ObservableObject, FilePreviewTabMetadataHos
     var isRemoteTmuxAuthLogin: Bool = false
 
     var isRestorableInSessionSnapshot: Bool {
+        if localPeerBinding != nil { return false }
         if isRemoteTmuxMirror { return false }
         if isRemoteTmuxAuthLogin { return false }
         if panels.values.contains(where: {
@@ -7073,7 +7076,8 @@ final class Workspace: Identifiable, ObservableObject, FilePreviewTabMetadataHos
 
     @MainActor
     func isRemoteTerminalSurface(_ panelId: UUID) -> Bool {
-        activeRemoteTerminalSurfaceIds.contains(panelId)
+        localPeerBinding?.mirrors.values.contains(where: { $0.panel?.id == panelId }) == true ||
+            activeRemoteTerminalSurfaceIds.contains(panelId)
     }
 
     @MainActor
@@ -9209,6 +9213,14 @@ final class Workspace: Identifiable, ObservableObject, FilePreviewTabMetadataHos
         allowTextBoxFocusDefault: Bool = true, autoLayout: Bool = false
     ) -> TerminalPanelCreationOutcome {
         guard !isRetiredFromOwningTabManager else { return .failed }
+        if localPeerBinding != nil {
+            guard workingDirectory == nil, initialCommand == nil, initialInput == nil,
+                  tmuxStartCommand == nil, startupEnvironment.isEmpty, remotePTYSessionID == nil,
+                  !suppressWorkspaceRemoteStartupCommand else { return .failed }
+            let direction = orientation == .vertical ? (insertFirst ? "left" : "right") : (insertFirst ? "up" : "down")
+            return AppDelegate.shared?.localPeerCoordinator.split(in: self, panelID: panelId, direction: direction) == true
+                ? .routedToRemote : .failed
+        }
         // In a remote tmux mirror workspace a split means "split the mirrored
         // tmux pane": route it to the remote and let the resulting
         // %layout-change render the new pane (one source of truth). NEVER
@@ -9546,6 +9558,13 @@ final class Workspace: Identifiable, ObservableObject, FilePreviewTabMetadataHos
     ) -> TerminalPanelCreationOutcome {
         guard !isRetiredFromOwningTabManager else { return .failed }
         // In a remote tmux mirror, a new tab means "create a tmux window"; never
+        if localPeerBinding != nil {
+            guard workingDirectory == nil, initialCommand == nil, initialInput == nil,
+                  tmuxStartCommand == nil, startupEnvironment.isEmpty, remotePTYSessionID == nil,
+                  startupRestoreAgent == nil, !suppressWorkspaceRemoteStartupCommand else { return .failed }
+            return AppDelegate.shared?.localPeerCoordinator.split(in: self,
+                panelID: selectedTerminalPanelId(inPane: paneId), direction: "right") == true ? .routedToRemote : .failed
+        }
         // create a local orphan the mirror can't reconcile. Dead mirrors are
         // torn down via handleSessionEndedRemotely.
         if isRemoteTmuxMirror {
@@ -10062,15 +10081,13 @@ final class Workspace: Identifiable, ObservableObject, FilePreviewTabMetadataHos
         }()
         // Under an MDM-managed disable no path may create a browser panel,
         // including session restore (mirrors the Dock restore behavior).
-        let creationPermittedWhileDisabled = creationPolicy.permitsCreationWhenBrowserDisabled
-            && !BrowserAvailabilitySettings.isManagedByPolicy
-        guard browserEnabled || creationPermittedWhileDisabled else {
+        guard browserEnabled else {
             if allowsExternalBrowserFallback,
                let externalURL = externalBrowserFallbackURL(
                 url: url,
                 initialRequest: initialRequest
             ) {
-                _ = NSWorkspace.shared.open(externalURL)
+                _ = TerminalLinkOpenCoordinator.openInExternalBrowser(externalURL)
             }
             return nil
         }
@@ -10208,15 +10225,13 @@ final class Workspace: Identifiable, ObservableObject, FilePreviewTabMetadataHos
         let browserEnabled = BrowserAvailabilitySettings.isEnabled()
         // Under an MDM-managed disable no path may create a browser panel,
         // including session restore (mirrors the Dock restore behavior).
-        let creationPermittedWhileDisabled = creationPolicy.permitsCreationWhenBrowserDisabled
-            && !BrowserAvailabilitySettings.isManagedByPolicy
-        guard browserEnabled || creationPermittedWhileDisabled else {
+        guard browserEnabled else {
             if allowsExternalBrowserFallback,
                let externalURL = externalBrowserFallbackURL(
                 url: url,
                 initialRequest: initialRequest
             ) {
-                _ = NSWorkspace.shared.open(externalURL)
+                _ = TerminalLinkOpenCoordinator.openInExternalBrowser(externalURL)
             }
             return nil
         }
@@ -11036,6 +11051,7 @@ final class Workspace: Identifiable, ObservableObject, FilePreviewTabMetadataHos
     /// Permanently retires this workspace before releasing its runtime resources.
     func retireFromOwningTabManager() {
         guard !isRetiredFromOwningTabManager else { return }
+        localPeerBinding?.stop()
         isRetiredFromOwningTabManager = true
         // Workspace retirement is the shared ownership boundary used by
         // window-close, stale-registration, and rejected-window cleanup. A
@@ -11439,6 +11455,9 @@ final class Workspace: Identifiable, ObservableObject, FilePreviewTabMetadataHos
     }
 
     func detachSurface(panelId: UUID) -> DetachedSurfaceTransfer? {
+        // A peer projection retains its explicit owner; moving it into a local
+        // workspace cannot silently turn its creation or filesystem authority local.
+        guard localPeerBinding == nil else { return nil }
         guard let tabId = surfaceIdFromPanelId(panelId) else { return nil }
         guard let sourcePanel = panels[panelId] else { return nil }
         let surfaceMachine = machineOwningSurface(panelId)
@@ -14820,6 +14839,11 @@ extension Workspace: BonsplitDelegate {
 
     func splitTabBar(_ controller: BonsplitController, shouldSplitPane pane: PaneID, orientation: SplitOrientation) -> Bool {
         guard !isRetiredFromOwningTabManager else { return false }
+        if localPeerBinding != nil {
+            _ = AppDelegate.shared?.localPeerCoordinator.split(in: self,
+                panelID: selectedTerminalPanelId(inPane: pane), direction: orientation == .vertical ? "right" : "down")
+            return false
+        }
         // In a remote tmux mirror, split means tmux `split-window`; always veto
         // local splits so the mirror never gains an orphan pane.
         guard isRemoteTmuxMirror else {

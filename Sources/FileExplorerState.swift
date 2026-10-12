@@ -66,7 +66,8 @@ final class FileExplorerState: ObservableObject {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        self.isVisible = defaults.bool(forKey: "fileExplorer.isVisible")
+        self.isVisible = defaults.object(forKey: "fileExplorer.isVisible") == nil
+            ? true : defaults.bool(forKey: "fileExplorer.isVisible")
         let storedWidth = defaults.double(forKey: "fileExplorer.width")
         self.width = storedWidth > 0 ? CGFloat(storedWidth) : 220
         let storedPosition = defaults.double(forKey: "fileExplorer.dividerPosition")

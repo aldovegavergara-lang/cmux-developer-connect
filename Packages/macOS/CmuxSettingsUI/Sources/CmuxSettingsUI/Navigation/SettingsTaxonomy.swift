@@ -71,24 +71,26 @@ enum SettingsTaxonomyGroup: String, CaseIterable, Identifiable, Sendable {
 
     /// Existing navigation leaves shown under this presentation category.
     var sections: [SettingsSectionID] {
+        let sections: [SettingsSectionID]
         switch self {
         case .general:
-            return [.account, .app, .themes, .sleepyMode]
+            sections = [.account, .app, .themes, .sleepyMode]
         case .terminal:
-            return [.terminal, .textBox]
+            sections = [.terminal, .textBox]
         case .workspace:
-            return [.workspaceColors]
+            sections = [.workspaceColors]
         case .sidebarAndDock:
-            return [.sidebarAppearance, .customSidebars]
+            sections = [.sidebarAppearance, .customSidebars]
         case .agentsAndAutomation:
-            return [.automation, .computerUse]
+            sections = [.automation, .computerUse]
         case .browserAndFiles:
-            return [.browser, .browserImport]
+            sections = [.browser, .browserImport]
         case .remoteAndDevices:
-            return [.mobile, .cloudMachines, .computers, .networking]
+            sections = [.mobile, .cloudMachines, .computers, .networking]
         case .keyboardAndAdvanced:
-            return [.globalHotkey, .keyboardShortcuts, .betaFeatures, .settingsJSON, .reset]
+            sections = [.globalHotkey, .keyboardShortcuts, .betaFeatures, .settingsJSON, .reset]
         }
+        return sections.filter(\.isAvailable)
     }
 
     /// All existing navigation leaves in the order used by grouped browsing.

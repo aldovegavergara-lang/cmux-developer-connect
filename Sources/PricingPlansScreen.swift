@@ -18,6 +18,7 @@ enum ProUpgradePresenter {
 
     @MainActor
     static func present(source: ProUpgradeSource) {
+        guard CmuxFeatureFlags.shared.isSidebarAccountButtonEnabled else { return }
         PostHogAnalytics.shared.capture(intentEvent, properties: CheckoutAttribution.intentProperties(source: source))
         presentAppPricingWeb(source: source)
     }

@@ -3084,6 +3084,9 @@ class TerminalController {
         diffViewerRegistration: DiffViewerSessionPreparation = .notNeeded
     ) -> V2MainHopOutcome {
         v2RefreshKnownRefs()
+        if let result = v2LocalPeerControl(method: method, params: params) {
+            return .encoded(v2Result(id: id, result))
+        }
 
         // Domains migrated into CmuxControlSocket's ControlCommandCoordinator
         // answer here, on the main actor, through the same encoder/id as the
@@ -16150,6 +16153,10 @@ class TerminalController {
         let terminalTarget = resolved.target
         let terminalPanel = terminalTarget.panel
         let delivery = mobileInputDelivery(params: params)
+        if let expected = params["expected_render_epoch"] as? String,
+           expected != MobileTerminalByteTee.shared.currentRenderCaptureIdentity(surfaceID: surfaceId).epoch {
+            return .err(code: "producer_changed", message: "The terminal producer changed; refresh before sending input", data: nil)
+        }
         if let answer = mobileInputAdmissionAnswer(delivery, workspaceID: resolved.workspace.id, surfaceID: surfaceId) {
             return answer
         }

@@ -33,7 +33,7 @@ struct TerminalLinkOpenCoordinator {
     init(
         defaults: UserDefaults = .standard,
         containerResolver: (@MainActor (UUID?, UUID?) -> (any TerminalLinkOpenContainer)?)? = nil,
-        externalOpen: @escaping @MainActor @Sendable (URL) -> Bool = { NSWorkspace.shared.open($0) },
+        externalOpen: @escaping @MainActor @Sendable (URL) -> Bool = { TerminalLinkOpenCoordinator.openInExternalBrowser($0) },
         fileOpen: (any FileOpening)? = nil,
         recordsDiagnostics: Bool = true,
         deferOperation: @escaping @MainActor (@escaping @MainActor @Sendable () -> Void) -> Void = { operation in
@@ -50,6 +50,16 @@ struct TerminalLinkOpenCoordinator {
         self.externalOpen = externalOpen
         self.fileOpen = fileOpen ?? PreferredEditorService(defaults: defaults)
         self.deferOperation = deferOperation
+    }
+
+    /// Opens web links in Chrome when installed, keeping native handlers for other URLs.
+    static func openInExternalBrowser(_ url: URL) -> Bool {
+        if ["http", "https"].contains(url.scheme?.lowercased() ?? ""),
+           let chrome = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.google.Chrome") {
+            NSWorkspace.shared.open([url], withApplicationAt: chrome, configuration: NSWorkspace.OpenConfiguration())
+            return true
+        }
+        return NSWorkspace.shared.open(url)
     }
 
     /// Opens a terminal link according to the source terminal and URL policy.

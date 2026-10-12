@@ -26,6 +26,9 @@ struct FileExplorerWorkspaceRootResolver {
     }
 
     func resolve(_ workspace: Workspace) -> FileExplorerWorkspaceRoot {
+        if let binding = workspace.localPeerBinding {
+            return binding.fileRoot(for: workspace).map(FileExplorerWorkspaceRoot.peer) ?? .none
+        }
         // A cmux-tui binding is the explicit Cloud filesystem authority. A
         // legacy managedCloudVMID on an SSH workspace must keep using its SSH
         // transport, otherwise Files would silently change hosts.

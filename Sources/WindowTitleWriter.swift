@@ -8,8 +8,14 @@ import AppKit
 /// an unchanged title from becoming another Dock/Spaces mutation.
 @MainActor
 final class WindowTitleWriter {
+    nonisolated private static let appName = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "cmux Developer"
+    nonisolated static func displayTitle(for title: String) -> String {
+        title.isEmpty ? appName : "\(appName) — \(title)"
+    }
+
     func apply(_ title: String, to window: NSWindow) {
-        guard window.title != title else { return }
-        window.title = title
+        let displayTitle = Self.displayTitle(for: title)
+        guard window.title != displayTitle else { return }
+        window.title = displayTitle
     }
 }

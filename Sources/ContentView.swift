@@ -1209,7 +1209,7 @@ struct ContentView: View {
                 captureStart: { fileExplorerDragStartWidth = fileExplorerWidth },
                 updateWidth: { translation in
                     let startWidth = fileExplorerDragStartWidth ?? fileExplorerWidth
-                    let nextWidth = normalizedRightSidebarWidth(startWidth - translation, availableWidth: availableWidth)
+                    let nextWidth = normalizedRightSidebarWidth(startWidth + (fileExplorerOnLeft ? translation : -translation), availableWidth: availableWidth)
                     withTransaction(Transaction(animation: nil)) {
                         fileExplorerWidth = nextWidth
                     }
@@ -1428,7 +1428,9 @@ struct ContentView: View {
             isLeftSidebarVisible: sidebarState.isVisible,
             leftDividerX: sidebarWidth,
             isRightSidebarVisible: rightSidebarVisible,
-            rightDividerX: contentView.bounds.maxX - rightSidebarWidth
+            rightDividerX: fileExplorerOnLeft
+                ? (sidebarState.isVisible ? sidebarWidth : 0) + rightSidebarWidth
+                : contentView.bounds.maxX - rightSidebarWidth
         )
         let mayActivate = sidebarResizerOcclusionResolver.bandMayActivate(
             isDragging: isResizerDragging,
@@ -1691,9 +1693,13 @@ struct ContentView: View {
     private var rightSidebarResizerOverlay: some View {
         placedSidebarResizerOverlay(
             handle: .explorerDivider,
-            edge: .trailing,
+            edge: fileExplorerOnLeft ? .leading : .trailing,
             accessibilityIdentifier: "RightSidebarResizer",
-            dividerX: { totalWidth in totalWidth - rightSidebarWidth }
+            dividerX: { totalWidth in
+                fileExplorerOnLeft
+                    ? (sidebarState.isVisible ? sidebarWidth : 0) + rightSidebarWidth
+                    : totalWidth - rightSidebarWidth
+            }
         )
     }
 
@@ -1866,13 +1872,21 @@ struct ContentView: View {
     }
 
     private func terminalContentWithRightSidebarPanel(appearance: WindowAppearanceSnapshot) -> some View {
-        // The right-sidebar shell remains in the view tree so its frame can
-        // animate without SwiftUI insertion/removal. Cold hidden launches defer
-        // heavy mode content until the sidebar has been shown at least once.
+        // Files and Find sit next to the workspace list in this Developer fork.
+        // Other tools retain their existing right rail and socket/shortcut APIs.
         return HStack(spacing: 0) {
+            if fileExplorerOnLeft {
+                rightSidebarPanelWithBackdrop(appearance: appearance)
+            }
             terminalContentWithSidebarDropOverlay(appearance: appearance)
-            rightSidebarPanelWithBackdrop(appearance: appearance)
+            if !fileExplorerOnLeft {
+                rightSidebarPanelWithBackdrop(appearance: appearance)
+            }
         }
+    }
+
+    private var fileExplorerOnLeft: Bool {
+        fileExplorerState.mode == .files || fileExplorerState.mode == .find
     }
 
     private var rightSidebarVisible: Bool {
@@ -1925,10 +1939,17 @@ struct ContentView: View {
     }
 
     private func rightSidebarPanelWithBackdrop(appearance: WindowAppearanceSnapshot) -> some View {
-        let panel = sidebarPanelContainer(width: rightSidebarWidth, alignment: .trailing, role: .rightSidebar, appearance: appearance) {
+        let panel = sidebarPanelContainer(
+            width: rightSidebarWidth,
+            alignment: fileExplorerOnLeft ? .leading : .trailing,
+            role: fileExplorerOnLeft ? .leftSidebar : .rightSidebar,
+            appearance: appearance
+        ) {
             rightSidebarPanel(appearance: appearance)
+                // Leave the traffic-light/title controls usable when the workspace rail is hidden.
+                .padding(.top, fileExplorerOnLeft && !sidebarState.isVisible ? WindowChromeMetrics.appTitlebarHeight : 0)
         }
-        .overlay(alignment: .leading) {
+        .overlay(alignment: fileExplorerOnLeft ? .trailing : .leading) {
             if rightSidebarVisible {
                 WindowChromeBorder(
                     orientation: .vertical,
@@ -2184,24 +2205,9 @@ struct ContentView: View {
             .frame(maxWidth: .infinity)
             .overlay(alignment: .topLeading) {
                 customTitlebar(appearance: appearance)
-                    // The workspace titlebar band spans the full window width and sits at
-                    // zIndex(100) over the content/sidebar layout. Its drag/double-click
-                    // surface (`WindowDragHandleView` + `.contentShape(Rectangle())`) must
-                    // not cover the right sidebar, whose mode bar (Files/Search/Feed/Vault)
-                    // lives inside the titlebar-height strip — otherwise the band wins the
-                    // hit-test and swallows every click/hover on those buttons (#5099).
-                    // Confine the interactive titlebar surface to the area left of the
-                    // right sidebar, matching the pre-#5017 "only over terminal content,
-                    // not the sidebar" intent. The left sidebar's titlebar controls live in
-                    // the AppKit titlebar accessory (above this band), so only the trailing
-                    // (right-sidebar) edge needs to be ceded here.
-                    //
-                    // `rightSidebarWidth` is already `rightSidebarVisible ? fileExplorerWidth : 0`,
-                    // so it collapses to 0 when the sidebar is hidden. The sidebar panel itself
-                    // snaps without animation (`.transaction { $0.animation = nil }`), so we match
-                    // that here — otherwise this inset could animate out of step with the panel on
-                    // toggle and momentarily expose (or re-cover) the mode bar mid-transition.
-                    .padding(.trailing, rightSidebarWidth)
+                    // Cede the explorer's mode bar to its own hit-testing surface.
+                    .padding(.leading, fileExplorerOnLeft ? rightSidebarWidth : 0)
+                    .padding(.trailing, fileExplorerOnLeft ? 0 : rightSidebarWidth)
                     .animation(nil, value: rightSidebarWidth)
             }
             .overlay(alignment: .topLeading) {
@@ -2321,7 +2327,7 @@ struct ContentView: View {
             return
         }
         // SSH and Cloud workspaces show their host after the title (`title · host`).
-        let title = tabManager.resolvedWorkspaceWindowTitle(for: tab)
+        let title = WindowTitleWriter.displayTitle(for: tabManager.resolvedWorkspaceWindowTitle(for: tab))
         if titlebarText != title {
             titlebarText = title
         }
@@ -2518,16 +2524,11 @@ struct ContentView: View {
             // the sidebar backdrop samples the window.
             layout = AnyView(
                 ZStack(alignment: .leading) {
-                    HStack(spacing: 0) {
-                        terminalContentWithSidebarDropOverlay(appearance: appearance)
-                            .modifier(SidebarWidthLeadingPaddingModifier(
-                                layout: sidebarLayout,
-                                enabled: sidebarState.isVisible
-                            ))
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .layoutPriority(1)
-                        rightSidebarPanelWithBackdrop(appearance: appearance)
-                    }
+                    terminalContentWithRightSidebarPanel(appearance: appearance)
+                        .modifier(SidebarWidthLeadingPaddingModifier(
+                            layout: sidebarLayout,
+                            enabled: sidebarState.isVisible
+                        ))
                     if sidebarState.isVisible {
                         sidebarPanelWithBackdrop(appearance: appearance)
                     }
@@ -7965,30 +7966,6 @@ struct ContentView: View {
                 title: constant(String(localized: "command.restartSocketListener.title", defaultValue: "Restart CLI Listener")),
                 subtitle: constant(String(localized: "command.restartSocketListener.subtitle", defaultValue: "Global")),
                 keywords: ["restart", "socket", "listener", "cli", "cmux", "control"]
-            )
-        )
-        contributions.append(
-            CommandPaletteCommandContribution(
-                commandId: "palette.disableBrowser",
-                title: constant(String(localized: "command.disableBrowser.title", defaultValue: "Disable cmux Browser")),
-                subtitle: constant(String(localized: "command.browserAvailability.subtitle", defaultValue: "Browser")),
-                keywords: ["browser", "disable", "external", "default", "open", "auth"],
-                when: {
-                    !$0.bool(CommandPaletteContextKeys.browserDisabled)
-                        && !$0.bool(CommandPaletteContextKeys.browserManagedByPolicy)
-                }
-            )
-        )
-        contributions.append(
-            CommandPaletteCommandContribution(
-                commandId: "palette.enableBrowser",
-                title: constant(String(localized: "command.enableBrowser.title", defaultValue: "Enable cmux Browser")),
-                subtitle: constant(String(localized: "command.browserAvailability.subtitle", defaultValue: "Browser")),
-                keywords: ["browser", "enable", "embedded", "open"],
-                when: {
-                    $0.bool(CommandPaletteContextKeys.browserDisabled)
-                        && !$0.bool(CommandPaletteContextKeys.browserManagedByPolicy)
-                }
             )
         )
         contributions.append(contentsOf: Self.commandPaletteSettingsToggleCommandContributions())
@@ -15721,7 +15698,7 @@ struct SidebarFooterButtons: View {
 
     private var isProStatusKnownForUpgrade: Bool {
         guard let flow = accountFlow else { return true }
-        return !flow.isWorkingOnAuth && (flow.currentIdentity == nil || flow.hasLoadedBillingPlan)
+        return flow.isProUpgradeAvailable && !flow.isWorkingOnAuth && (flow.currentIdentity == nil || flow.hasLoadedBillingPlan)
     }
 
     private func shows(_ control: SidebarFooterControl) -> Bool {
@@ -15880,13 +15857,7 @@ private struct SidebarHelpMenuButton: View {
                 accessibilityIdentifier: "SidebarHelpMenuOptionWelcome",
                 isExternalLink: false
             )
-            helpOptionButton(
-                title: String(localized: "menu.help.upgradeToPro", defaultValue: "Upgrade to cmux Pro…"),
-                action: .upgrade,
-                accessibilityIdentifier: "SidebarHelpMenuOptionUpgrade",
-                isExternalLink: false,
-                trailingSystemImage: "sparkles"
-            )
+
             helpOptionButton(
                 title: String(localized: "menu.app.settings", defaultValue: "Settings…"),
                 action: .settings,
@@ -15900,12 +15871,7 @@ private struct SidebarHelpMenuButton: View {
                 accessibilityIdentifier: "SidebarHelpMenuOptionKeyboardShortcuts",
                 isExternalLink: false
             )
-            helpOptionButton(
-                title: String(localized: "menu.view.importFromBrowser", defaultValue: "Import Browser Data…"),
-                action: .importBrowserData,
-                accessibilityIdentifier: "SidebarHelpMenuOptionImportBrowserData",
-                isExternalLink: false
-            )
+
             helpOptionButton(
                 title: String(localized: "sidebar.help.sendFeedback", defaultValue: "Send Feedback"),
                 action: .sendFeedback,

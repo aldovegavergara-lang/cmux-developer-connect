@@ -2589,6 +2589,7 @@ class TabManager: ObservableObject {
         // manager may close its own live workspaces; stale or foreign objects must
         // never tear down terminals or publish a second close.
         guard tabs.contains(where: { $0.id == workspace.id }) else { return }
+        if workspace.localPeerBinding != nil { AppDelegate.shared?.localPeerCoordinator.noteProjectionClosed(workspace) }
         MachineCreateCoordinator.shared.cancelOperations(forPresentationWorkspace: workspace.id)
         panelTitleUpdateCoalescer.flushNow()
         sentryBreadcrumb("workspace.close", data: ["tabCount": tabs.count - 1])

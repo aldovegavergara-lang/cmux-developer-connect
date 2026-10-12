@@ -19,17 +19,10 @@ extension SettingsWindowRoot {
     @ViewBuilder
     func sectionStack(proxy: ScrollViewProxy) -> some View {
         // Top to bottom in ``SettingsSectionMountModel/displayOrder``, the
-        // order sections mount in: Account, App, Themes, Terminal, TextBox, Sleepy Mode, then Mobile,
+        // order sections mount in: App, Themes, Terminal, TextBox, Sleepy Mode, then Mobile,
         // Cloud, Devices, Networking, the sidebar sections, Beta Features,
-        // Automation, Computer Use, Browser (with embedded Import), Global
+        // Automation, Computer Use, Global
         // Hotkey, Keyboard Shortcuts, Workspace Colors, cmux.json, Reset.
-        slot(.account, proxy: proxy) {
-            AccountSection(
-                defaultsStore: defaultsStore,
-                catalog: catalog,
-                accountFlow: accountFlow
-            )
-        }
 
         slot(.app, proxy: proxy) {
             AppSection(
@@ -126,14 +119,6 @@ extension SettingsWindowRoot {
             )
         }
 
-        slot(.browser, proxy: proxy) {
-            BrowserSection(
-                defaultsStore: defaultsStore,
-                catalog: catalog,
-                hostActions: hostActions,
-                importAnchorID: anchorID(for: .browserImport)
-            )
-        }
 
         slot(.globalHotkey, proxy: proxy) {
             GlobalHotkeySection(

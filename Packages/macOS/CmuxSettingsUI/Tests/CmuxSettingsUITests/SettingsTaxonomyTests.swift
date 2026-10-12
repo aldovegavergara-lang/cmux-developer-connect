@@ -8,19 +8,19 @@ struct SettingsTaxonomyTests {
     @Test func everyNavigationLeafAppearsExactlyOnce() {
         let sections = SettingsTaxonomyGroup.sectionsInDisplayOrder
 
-        #expect(sections.count == SettingsSectionID.allCases.count)
+        #expect(sections.count == SettingsSectionID.allCases.filter(\.isAvailable).count)
         #expect(Set(sections).count == sections.count)
-        #expect(Set(sections) == Set(SettingsSectionID.allCases))
+        #expect(Set(sections) == Set(SettingsSectionID.allCases.filter(\.isAvailable)))
     }
 
     /// Locks the intended concept-to-leaf mapping for the browse sidebar.
     @Test func groupsFollowTheBrowseTaxonomy() {
-        #expect(SettingsTaxonomyGroup.general.sections == [.account, .app, .themes, .sleepyMode])
+        #expect(SettingsTaxonomyGroup.general.sections == [.app, .themes, .sleepyMode])
         #expect(SettingsTaxonomyGroup.terminal.sections == [.terminal, .textBox])
         #expect(SettingsTaxonomyGroup.workspace.sections == [.workspaceColors])
         #expect(SettingsTaxonomyGroup.sidebarAndDock.sections == [.sidebarAppearance, .customSidebars])
         #expect(SettingsTaxonomyGroup.agentsAndAutomation.sections == [.automation, .computerUse])
-        #expect(SettingsTaxonomyGroup.browserAndFiles.sections == [.browser, .browserImport])
+        #expect(SettingsTaxonomyGroup.browserAndFiles.sections .isEmpty)
         #expect(SettingsTaxonomyGroup.remoteAndDevices.sections == [.mobile, .cloudMachines, .computers, .networking])
         #expect(
             SettingsTaxonomyGroup.keyboardAndAdvanced.sections
@@ -36,7 +36,7 @@ struct SettingsTaxonomyTests {
 
         // Search keeps its original declaration order and stable IDs.
         // Taxonomy is only the empty-query browse presentation.
-        #expect(sectionEntries.map(\.id) == SettingsSectionID.allCases.map { "section:\($0.rawValue)" })
+        #expect(sectionEntries.map(\.id) == SettingsSectionID.allCases.filter(\.isAvailable).map { "section:\($0.rawValue)" })
 
         for section in SettingsTaxonomyGroup.sectionsInDisplayOrder {
             let entryID = "section:\(section.rawValue)"
@@ -52,7 +52,7 @@ struct SettingsTaxonomyTests {
         let index = SettingsSearchIndex(catalog: SettingCatalog())
         #expect(index.anchorID(forSettingsPath: "app.accentColor") == "setting:themes:accent-color")
         #expect(index.anchorID(forSettingsPath: "terminal.adaptiveDefaultTheme") == "setting:themes:adaptive-default-theme")
-        #expect(index.anchorID(forSettingsPath: "browser.theme") == "setting:themes:browser-theme")
+        #expect(index.anchorID(forSettingsPath: "browser.theme") == nil)
 
         let hits = index.match("terminal theme")
         let terminalTheme = try #require(hits.first { $0.id == "setting:themes:terminal-theme" })

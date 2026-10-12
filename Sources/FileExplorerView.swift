@@ -103,6 +103,8 @@ struct FileExplorerPanelView: NSViewRepresentable {
         weak var outlineView: NSOutlineView?
         private var lastRootNodeCount: Int = -1
         private var lastContentRevision: Int = -1
+        private var lastGitStatusByPath: [String: GitFileStatus] = [:]
+        private var lastLoadedChildrenRevisions: [ObjectIdentifier: UInt64] = [:]
         private var observationCancellable: AnyCancellable?
         private var styleObserver: Any?
         private var isUpdatingOutlineProgrammatically = false
@@ -219,10 +221,31 @@ struct FileExplorerPanelView: NSViewRepresentable {
                     let expandedPaths = store.expandedPaths
                     outlineView.reloadData()
                     restoreExpansionState(expandedPaths, in: outlineView)
+                    lastLoadedChildrenRevisions.removeAll(keepingCapacity: true)
+                    for row in 0..<outlineView.numberOfRows {
+                        if let node = outlineView.item(atRow: row) as? FileExplorerNode {
+                            lastLoadedChildrenRevisions[ObjectIdentifier(node)] = node.childrenRevision
+                        }
+                    }
                 } else {
                     refreshLoadedNodes(in: outlineView)
                 }
                 applyStoredSelection(in: outlineView, fallbackToFirstVisible: false, scroll: false)
+                refreshGitStatusBadges(in: outlineView)
+            }
+        }
+
+        private func refreshGitStatusBadges(in outlineView: NSOutlineView) {
+            let statuses = store.gitStatusByPath
+            guard lastGitStatusByPath != statuses else { return }
+            lastGitStatusByPath = statuses
+            // Git decorations update the visible cells, without rebuilding child rows.
+            let visibleRows = outlineView.rows(in: outlineView.visibleRect)
+            guard visibleRows.location != NSNotFound else { return }
+            for row in visibleRows.location..<min(NSMaxRange(visibleRows), outlineView.numberOfRows) {
+                guard let node = outlineView.item(atRow: row) as? FileExplorerNode,
+                      let cell = outlineView.view(atColumn: 0, row: row, makeIfNecessary: false) as? FileExplorerCellView else { continue }
+                cell.configure(with: node, gitStatus: statuses[node.path])
             }
         }
 
@@ -250,8 +273,13 @@ struct FileExplorerPanelView: NSViewRepresentable {
         }
 
         private func refreshLoadedNodes(in outlineView: NSOutlineView) {
-            for row in 0..<outlineView.numberOfRows {
+            var visibleNodes: Set<ObjectIdentifier> = []
+            var row = 0
+            while row < outlineView.numberOfRows {
+                defer { row += 1 }
                 guard let node = outlineView.item(atRow: row) as? FileExplorerNode else { continue }
+                let identity = ObjectIdentifier(node)
+                visibleNodes.insert(identity)
                 if node.isDirectory {
                     let isCurrentlyExpanded = outlineView.isItemExpanded(node)
                     let shouldBeExpanded = store.expandedPaths.contains(node.path)
@@ -261,14 +289,18 @@ struct FileExplorerPanelView: NSViewRepresentable {
                         outlineView.expandItem(node)
                     } else if !shouldBeExpanded && isCurrentlyExpanded {
                         outlineView.collapseItem(node)
-                    } else if node.children != nil {
+                    } else if node.children != nil,
+                              lastLoadedChildrenRevisions[identity] != node.childrenRevision {
+                        // Layout and selection changes must not rebuild unchanged subtrees.
                         outlineView.reloadItem(node, reloadChildren: true)
                         if shouldBeExpanded {
                             outlineView.expandItem(node)
                         }
                     }
                 }
+                lastLoadedChildrenRevisions[identity] = node.childrenRevision
             }
+            lastLoadedChildrenRevisions = lastLoadedChildrenRevisions.filter { visibleNodes.contains($0.key) }
         }
 
         // MARK: - NSOutlineViewDataSource
@@ -326,6 +358,7 @@ struct FileExplorerPanelView: NSViewRepresentable {
 
         func outlineView(_ outlineView: NSOutlineView, shouldExpandItem item: Any) -> Bool {
             guard let node = item as? FileExplorerNode, node.isDirectory else { return false }
+            guard !isUpdatingOutlineProgrammatically || store.isExpanded(node) else { return false }
             store.expand(node: node)
             return node.children != nil
         }

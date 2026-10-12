@@ -172,6 +172,7 @@ extension TerminalController {
 
         var payload: [String: Any] = [
             "workspaces": workspaces,
+            "peer_input_epoch_guard": true,
             "groups": groups
         ]
         if let createdWorkspaceID {
@@ -278,6 +279,7 @@ extension TerminalController {
             "id": workspace.id.uuidString,
             "window_id": v2OrNull(windowID?.uuidString),
             "title": workspace.title,
+            "peer_projection": workspace.localPeerBinding != nil,
             // Durable workspace identity stays separate from the live activity
             // preview below so the phone can display both at once.
             "description": v2OrNull(description.value),

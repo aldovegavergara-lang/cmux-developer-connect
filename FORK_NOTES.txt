@@ -1,0 +1,34 @@
+cmux Developer Connect — independent cmux fork
+
+Upstream: https://github.com/manaflow-ai/cmux
+Base: b7d8dee8c07eb96507a399f1b13f5fce34ac3eeb
+
+The original license, copyright notices, public upstream history and submodules
+are retained. This project is not an official Manaflow release. Desktop changes
+follow the upstream project license; separately licensed server directories and
+third-party dependencies keep their original terms.
+
+Fork behavior:
+- cmux account sign-in and account-dependent Cloud/Pro flows are disabled.
+- Embedded browser workspaces are disabled; web links use external Chrome.
+- File previews retain their shared WebKit implementation.
+- The native file tree follows the focused local or remote terminal directory.
+- Trusted Macs share existing PTYs alongside each client's local workspaces.
+- Mobile sharing includes authentication, expiry, session selection and a private
+  Unix terminal backend. Tailscale is optional; public router exposure is not used.
+- Remote input, file access, HTTP/TLS admission and render frames are bounded.
+
+Build: scripts/build-developer.sh
+Default tag: developer-local
+Runtime cache: ~/Library/Caches/cmux-developer/toolchains/
+Custom build paths and runtimes can be supplied through environment variables.
+No workstation path, account, invitation, key, session or tailnet is preconfigured.
+
+Publication starts from the public upstream base with a sanitized fork commit.
+Private development history, machine evidence and session state are not published.
+See README.md, README.es.md and docs/developer-peers.md for setup and limitations.
+
+Product source remains based on the upstream base above. GitHub workflow files
+are retained exactly from the fork's existing main snapshot
+(c995e8337050e7dd4775e3927f4bba77b4282922), without enabling Actions or publishing
+custom workflows. This preserves the fork's existing GitHub configuration.

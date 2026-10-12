@@ -352,7 +352,7 @@ final class CmuxFeatureFlags {
     }()
 
     var isMobileConnectButtonEnabled: Bool {
-        effectiveValue(for: Self.mobileConnectButtonFlag)
+        false
     }
 
     var isAgentChatUIEnabled: Bool {
@@ -360,7 +360,8 @@ final class CmuxFeatureFlags {
     }
 
     var isSidebarAccountButtonEnabled: Bool {
-        effectiveValue(for: Self.sidebarAccountButtonFlag)
+        // This fork does not offer cmux account sign-in.
+        false
     }
 
     var isSidebarWorkspaceAgentSpinnerEnabled: Bool {

@@ -2432,6 +2432,17 @@
 		D10799020000000000000001 /* LiveTabDragCapabilityResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10799010000000000000001 /* LiveTabDragCapabilityResolver.swift */; };
 		DB326399C791DD70E9D6997A /* LiveWorkspaceFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B507A66B0F521925687F2ED /* LiveWorkspaceFixture.swift */; };
 		DA7A10CA710E000000000003 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = DA7A10CA710E000000000001 /* Localizable.xcstrings */; };
+		02A3642B02806A075A79C754 /* LocalPeerClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40F55183B6C37D1FCDDF82B3 /* LocalPeerClient.swift */; };
+		2B3AC0D6337C8E6BDEE8FBBD /* LocalPeerCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9EA3219B08AAC348BD338D0F /* LocalPeerCoordinator.swift */; };
+		39FBDC5292B39AF9F9614183 /* LocalPeerCredential.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EAD29532C685CBD65E5BFD9 /* LocalPeerCredential.swift */; };
+		87808D7634168C0DFB13779E /* LocalPeerError.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFB5492B581AD2D3180B91F4 /* LocalPeerError.swift */; };
+		10A33692DFFD8571AEA25D40 /* LocalPeerFileProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = F07061CD82DB5C5127DE02AD /* LocalPeerFileProvider.swift */; };
+		932CFC5E414EAC969CDF731D /* LocalPeerFileRoot.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDDC302A9326AAEA30EEAAA9 /* LocalPeerFileRoot.swift */; };
+		D81BA76EA4D89E5EBF9BB62B /* LocalPeerHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = E088ED4999D451519C24468D /* LocalPeerHost.swift */; };
+		9AB2F417370AA8E6AAB86779 /* LocalPeerMirror.swift in Sources */ = {isa = PBXBuildFile; fileRef = 869D85F520547055F8B6B8E1 /* LocalPeerMirror.swift */; };
+		F8D04333AAEF7E2065ECDE93 /* LocalPeerPinnedSessionDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5C8812E694C0F1E286830CA /* LocalPeerPinnedSessionDelegate.swift */; };
+		D1DAB53DC95B17BCD271B967 /* LocalPeerWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19013FA99D8AE7EC4C2BA7D0 /* LocalPeerWindowController.swift */; };
+		1CC89AE6C8D36DF205861277 /* LocalPeerWorkspaceBinding.swift in Sources */ = {isa = PBXBuildFile; fileRef = C464A01D7EB10BFC0F5BD1B4 /* LocalPeerWorkspaceBinding.swift */; };
 		FB25E56BD61C9F5999CA3CB6 /* LocalSessionAttachProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 349A471149F2DC7797EE24F7 /* LocalSessionAttachProfile.swift */; };
 		8F3CFE9C065FF1BD53D150CF /* LocalSurfaceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EDD243C7C87A2AB78B12BAD /* LocalSurfaceProvider.swift */; };
 		540A9F26DCDFD0C16B257D6F /* LocalSurfaceProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64C68B378B6071B213B4AA57 /* LocalSurfaceProviderTests.swift */; };
@@ -3840,6 +3851,7 @@
 		A28B087F000000000000000B /* TerminalController+DiffViewerTrust.swift in Sources */ = {isa = PBXBuildFile; fileRef = A28B087F000000000000000C /* TerminalController+DiffViewerTrust.swift */; };
 		8777C0018777C0018777C001 /* TerminalController+DockControlTopology.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8777C0028777C0028777C002 /* TerminalController+DockControlTopology.swift */; };
 		8672D0038672D0038672D003 /* TerminalController+FeedAcknowledgment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8672D0048672D0048672D004 /* TerminalController+FeedAcknowledgment.swift */; };
+		38C6E9F5976355E67454AEDC /* TerminalController+LocalPeers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EB8CC4CF18F6E09E382F0D3 /* TerminalController+LocalPeers.swift */; };
 		CF8062B5358EF8BACDC4B11E /* TerminalController+MemoryDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 465DC70102FF7A836544B98A /* TerminalController+MemoryDiagnostics.swift */; };
 		A7C0F0020000000000000002 /* TerminalController+MobileAttachTicket.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7C0F0020000000000000001 /* TerminalController+MobileAttachTicket.swift */; };
 		F2100000000000000000000E /* TerminalController+MobileBrowser.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1100000000000000000000E /* TerminalController+MobileBrowser.swift */; };
@@ -6950,6 +6962,17 @@
 		D10799010000000000000001 /* LiveTabDragCapabilityResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveTabDragCapabilityResolver.swift; sourceTree = "<group>"; };
 		7B507A66B0F521925687F2ED /* LiveWorkspaceFixture.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LiveWorkspaceFixture.swift; sourceTree = "<group>"; };
 		DA7A10CA710E000000000001 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		40F55183B6C37D1FCDDF82B3 /* LocalPeerClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalPeers/LocalPeerClient.swift; sourceTree = "<group>"; };
+		9EA3219B08AAC348BD338D0F /* LocalPeerCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalPeers/LocalPeerCoordinator.swift; sourceTree = "<group>"; };
+		5EAD29532C685CBD65E5BFD9 /* LocalPeerCredential.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalPeers/LocalPeerCredential.swift; sourceTree = "<group>"; };
+		BFB5492B581AD2D3180B91F4 /* LocalPeerError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalPeers/LocalPeerError.swift; sourceTree = "<group>"; };
+		F07061CD82DB5C5127DE02AD /* LocalPeerFileProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalPeers/LocalPeerFileProvider.swift; sourceTree = "<group>"; };
+		BDDC302A9326AAEA30EEAAA9 /* LocalPeerFileRoot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalPeers/LocalPeerFileRoot.swift; sourceTree = "<group>"; };
+		E088ED4999D451519C24468D /* LocalPeerHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalPeers/LocalPeerHost.swift; sourceTree = "<group>"; };
+		869D85F520547055F8B6B8E1 /* LocalPeerMirror.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalPeers/LocalPeerMirror.swift; sourceTree = "<group>"; };
+		E5C8812E694C0F1E286830CA /* LocalPeerPinnedSessionDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalPeers/LocalPeerPinnedSessionDelegate.swift; sourceTree = "<group>"; };
+		19013FA99D8AE7EC4C2BA7D0 /* LocalPeerWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalPeers/LocalPeerWindowController.swift; sourceTree = "<group>"; };
+		C464A01D7EB10BFC0F5BD1B4 /* LocalPeerWorkspaceBinding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalPeers/LocalPeerWorkspaceBinding.swift; sourceTree = "<group>"; };
 		349A471149F2DC7797EE24F7 /* LocalSessionAttachProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalSessionAttachProfile.swift; sourceTree = "<group>"; };
 		1EDD243C7C87A2AB78B12BAD /* LocalSurfaceProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LocalSurfaceProvider.swift; sourceTree = "<group>"; };
 		64C68B378B6071B213B4AA57 /* LocalSurfaceProviderTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LocalSurfaceProviderTests.swift; sourceTree = "<group>"; };
@@ -8335,6 +8358,7 @@
 		A28B087F000000000000000C /* TerminalController+DiffViewerTrust.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TerminalController+DiffViewerTrust.swift"; sourceTree = "<group>"; };
 		8777C0028777C0028777C002 /* TerminalController+DockControlTopology.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TerminalController+DockControlTopology.swift"; sourceTree = "<group>"; };
 		8672D0048672D0048672D004 /* TerminalController+FeedAcknowledgment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TerminalController+FeedAcknowledgment.swift"; sourceTree = "<group>"; };
+		0EB8CC4CF18F6E09E382F0D3 /* TerminalController+LocalPeers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LocalPeers/TerminalController+LocalPeers.swift"; sourceTree = "<group>"; };
 		465DC70102FF7A836544B98A /* TerminalController+MemoryDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TerminalController+MemoryDiagnostics.swift"; sourceTree = "<group>"; };
 		A7C0F0020000000000000001 /* TerminalController+MobileAttachTicket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TerminalController+MobileAttachTicket.swift"; sourceTree = "<group>"; };
 		F1100000000000000000000E /* TerminalController+MobileBrowser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TerminalController+MobileBrowser.swift"; sourceTree = "<group>"; };
@@ -12200,6 +12224,18 @@
 				F161E76F05A8BF5727D1CE9F /* WindowHintRegion.swift */,
 				7EC85F920AF6955D4B6E9FAB /* WindowHintPages.swift */,
 				32EE1C28EF7A7BF6ADD44E45 /* ClickByHintPreview.swift */,
+				40F55183B6C37D1FCDDF82B3 /* LocalPeerClient.swift */,
+				5EAD29532C685CBD65E5BFD9 /* LocalPeerCredential.swift */,
+				BFB5492B581AD2D3180B91F4 /* LocalPeerError.swift */,
+				E5C8812E694C0F1E286830CA /* LocalPeerPinnedSessionDelegate.swift */,
+				F07061CD82DB5C5127DE02AD /* LocalPeerFileProvider.swift */,
+				BDDC302A9326AAEA30EEAAA9 /* LocalPeerFileRoot.swift */,
+				9EA3219B08AAC348BD338D0F /* LocalPeerCoordinator.swift */,
+				869D85F520547055F8B6B8E1 /* LocalPeerMirror.swift */,
+				C464A01D7EB10BFC0F5BD1B4 /* LocalPeerWorkspaceBinding.swift */,
+				E088ED4999D451519C24468D /* LocalPeerHost.swift */,
+				19013FA99D8AE7EC4C2BA7D0 /* LocalPeerWindowController.swift */,
+				0EB8CC4CF18F6E09E382F0D3 /* TerminalController+LocalPeers.swift */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -15793,6 +15829,17 @@
 				110439021104390211043902 /* LiveAgentSessionOwnerSessionKey.swift in Sources */,
 				CFSF00000000000000000006 /* LiveCloudFileExplorerCommandRunner.swift in Sources */,
 				D10799020000000000000001 /* LiveTabDragCapabilityResolver.swift in Sources */,
+				02A3642B02806A075A79C754 /* LocalPeerClient.swift in Sources */,
+				2B3AC0D6337C8E6BDEE8FBBD /* LocalPeerCoordinator.swift in Sources */,
+				39FBDC5292B39AF9F9614183 /* LocalPeerCredential.swift in Sources */,
+				87808D7634168C0DFB13779E /* LocalPeerError.swift in Sources */,
+				10A33692DFFD8571AEA25D40 /* LocalPeerFileProvider.swift in Sources */,
+				932CFC5E414EAC969CDF731D /* LocalPeerFileRoot.swift in Sources */,
+				D81BA76EA4D89E5EBF9BB62B /* LocalPeerHost.swift in Sources */,
+				9AB2F417370AA8E6AAB86779 /* LocalPeerMirror.swift in Sources */,
+				F8D04333AAEF7E2065ECDE93 /* LocalPeerPinnedSessionDelegate.swift in Sources */,
+				D1DAB53DC95B17BCD271B967 /* LocalPeerWindowController.swift in Sources */,
+				1CC89AE6C8D36DF205861277 /* LocalPeerWorkspaceBinding.swift in Sources */,
 				8F3CFE9C065FF1BD53D150CF /* LocalSurfaceProvider.swift in Sources */,
 				A1329C010000000000000101 /* LocalTerminalSharingController.swift in Sources */,
 				53750022A0B1C2D3E4F50022 /* MacAuthComposition.swift in Sources */,
@@ -16720,6 +16767,7 @@
 				A28B087F000000000000000B /* TerminalController+DiffViewerTrust.swift in Sources */,
 				8777C0018777C0018777C001 /* TerminalController+DockControlTopology.swift in Sources */,
 				8672D0038672D0038672D003 /* TerminalController+FeedAcknowledgment.swift in Sources */,
+				38C6E9F5976355E67454AEDC /* TerminalController+LocalPeers.swift in Sources */,
 				CF8062B5358EF8BACDC4B11E /* TerminalController+MemoryDiagnostics.swift in Sources */,
 				A7C0F0020000000000000002 /* TerminalController+MobileAttachTicket.swift in Sources */,
 				F2100000000000000000000E /* TerminalController+MobileBrowser.swift in Sources */,

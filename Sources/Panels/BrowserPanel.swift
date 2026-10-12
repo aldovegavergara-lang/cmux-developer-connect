@@ -579,19 +579,11 @@ enum BrowserLinkOpenSettings {
 enum BrowserAvailabilitySettings {
     static let disabledKey = "browserDisabledOverride"
     static let didChangeNotification = Notification.Name("cmux.browserAvailabilityDidChange")
-    static let defaultDisabled = false
+    static let defaultDisabled = true
 
     static func isDisabled(defaults: UserDefaults = .standard) -> Bool {
-        // An MDM configuration profile (DisableEmbeddedBrowser) wins over
-        // every user-level source and cannot be overridden from the app.
-        if isManagedByPolicy {
-            return true
-        }
-        // No synchronize() on read: it forces a blocking prefs-plist reload on a path hit from link-open/pane-create; UserDefaults stays coherent in-process and via cfprefsd.
-        if defaults.object(forKey: disabledKey) == nil {
-            return defaultDisabled
-        }
-        return defaults.bool(forKey: disabledKey)
+        // Permanently disabled in this fork, including saved enable overrides.
+        true
     }
 
     static func isEnabled(defaults: UserDefaults = .standard) -> Bool {
@@ -600,7 +592,7 @@ enum BrowserAvailabilitySettings {
 
     static func setDisabled(_ disabled: Bool, defaults: UserDefaults = .standard) {
         // `set` already persists; `synchronize()` is a deprecated no-op-style fsync.
-        defaults.set(disabled, forKey: disabledKey)
+        defaults.set(true, forKey: disabledKey)
         NotificationCenter.default.post(name: didChangeNotification, object: nil)
     }
 
@@ -618,7 +610,7 @@ enum BrowserAvailabilitySettings {
     /// `closeBrowserPanelsForManagedPolicy()` — so hiding them would strand a
     /// working panel with no way to navigate it.
     static func offersBrowserAffordance(isEnabled: Bool) -> Bool {
-        isEnabled
+        false
     }
 }
 

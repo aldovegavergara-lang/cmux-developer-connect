@@ -137,6 +137,12 @@ output_fingerprint() {
     hash_tree "$TERMINFO_DEST"
     hash_tree "$CMUX_SHELL_DEST"
     hash_tree "$GHOSTTY_HELPER_DEST"
+    hash_tree "${BIN_DEST}/cmux-mobile-share"
+    hash_tree "${BIN_DEST}/cmux-mobile-menu.py"
+    hash_tree "${BIN_DEST}/cmux-mobile-menu.html"
+    hash_tree "${BIN_DEST}/cmux-peer-service.py"
+    hash_tree "${BIN_DEST}/peer"
+    hash_tree "${DEST}/peer-runtime"
     if [ -d "$CMUX_CUA_HELPER_APP" ]; then
       hash_tree "$CMUX_CUA_HELPER_APP"
     else
@@ -205,6 +211,12 @@ fingerprint="$({
     hash_git_worktree "${CMUX_CUA_SRC}"
   fi
   hash_tree "${SRCROOT}/scripts/build-app-bundled-resources.sh"
+  hash_tree "${SRCROOT}/Resources/bin/cmux-mobile-share"
+  hash_tree "${SRCROOT}/Resources/bin/cmux-mobile-menu.py"
+  hash_tree "${SRCROOT}/Resources/bin/cmux-mobile-menu.html"
+  hash_tree "${SRCROOT}/Resources/bin/cmux-peer-service.py"
+  hash_tree "${SRCROOT}/Resources/bin/peer"
+  if [ -n "${CMUX_PEER_RUNTIME:-}" ]; then hash_tree "$CMUX_PEER_RUNTIME"; fi
   hash_tree "$BUILD_GHOSTTY_HELPER"
   hash_tree "$BUILD_CMUX_CUA"
   hash_tree "$APPLY_CMUX_CUA_PATCH"
@@ -243,6 +255,17 @@ if [ -f "$STAMP" ] && [ -x "$GHOSTTY_HELPER_DEST" ] \
   exit 0
 fi
 mkdir -p "$BIN_DEST" "$LIBEXEC_DEST"
+install -m 755 "${SRCROOT}/Resources/bin/cmux-mobile-share" "${BIN_DEST}/cmux-mobile-share"
+install -m 644 "${SRCROOT}/Resources/bin/cmux-mobile-menu.py" "${BIN_DEST}/cmux-mobile-menu.py"
+install -m 644 "${SRCROOT}/Resources/bin/cmux-mobile-menu.html" "${BIN_DEST}/cmux-mobile-menu.html"
+install -m 755 "${SRCROOT}/Resources/bin/cmux-peer-service.py" "${BIN_DEST}/cmux-peer-service.py"
+mkdir -p "${BIN_DEST}/peer"
+install -m 644 "${SRCROOT}/Resources/bin/peer/policy.py" "${BIN_DEST}/peer/policy.py"
+install -m 644 "${SRCROOT}/Resources/bin/peer/http_limits.py" "${BIN_DEST}/peer/http_limits.py"
+if [ -n "${CMUX_PEER_RUNTIME:-}" ]; then
+  mkdir -p "${DEST}/peer-runtime"
+  rsync -a --delete "${CMUX_PEER_RUNTIME}/" "${DEST}/peer-runtime/"
+fi
 rm -f "$LEGACY_CMUX_CUA_CLIENT" "$LEGACY_CMUX_CUA_LICENSE"
 sync_swiftpm_resource_bundles
 if [ -d "$GHOSTTY_SRC" ]; then

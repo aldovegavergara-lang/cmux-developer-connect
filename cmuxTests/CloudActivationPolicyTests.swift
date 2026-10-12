@@ -300,7 +300,7 @@ struct CloudActivationPolicyTests {
         #expect(!CloudMachinesFeature.isEnabled(defaults: defaults, policy: unmanaged))
 
         defaults.set(true, forKey: RightSidebarBetaFeatureSettings.cloudMachinesEnabledKey)
-        #expect(CloudMachinesFeature.isEnabled(defaults: defaults, policy: unmanaged))
+        #expect(!CloudMachinesFeature.isEnabled(defaults: defaults, policy: unmanaged))
         #expect(!CloudMachinesFeature.isEnabled(defaults: defaults, policy: managedOff))
 
         defaults.set(false, forKey: RightSidebarBetaFeatureSettings.cloudMachinesEnabledKey)

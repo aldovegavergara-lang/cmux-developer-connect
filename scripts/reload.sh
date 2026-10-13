@@ -1678,6 +1678,12 @@ if [[ -z "$TAG" ]]; then
   )
 fi
 XCODEBUILD_ARGS+=(PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID")
+if [[ -n "${CMUX_RELOAD_BUILD_ARCHS:-}" ]]; then
+  case "$CMUX_RELOAD_BUILD_ARCHS" in
+    arm64|x86_64) XCODEBUILD_ARGS+=("ARCHS=$CMUX_RELOAD_BUILD_ARCHS" ONLY_ACTIVE_ARCH=YES) ;;
+    *) echo "error: CMUX_RELOAD_BUILD_ARCHS must be arm64 or x86_64" >&2; exit 1 ;;
+  esac
+fi
 if [[ "$BUILD_CONFIGURATION" == Release ]]; then
   XCODEBUILD_ARGS+=(CODE_SIGN_ENTITLEMENTS=)
 fi
@@ -1699,6 +1705,17 @@ if [[ "${CMUX_SKIP_ZIG_BUILD:-}" == "1" ]]; then
   XCODEBUILD_ARGS+=(CMUX_SKIP_ZIG_BUILD=1)
 fi
 SWIFT_OTHER_FLAGS='$(inherited)'
+if [[ "${CMUX_RELOAD_REMAP_HOME:-0}" == "1" ]]; then
+  # Distribution diagnostics must not embed the build user's home directory.
+  # Source paths with spaces are unsupported by this opt-in compiler argument.
+  if [[ "$HOME" == *' '* ]]; then
+    echo "error: CMUX_RELOAD_REMAP_HOME needs a home path without spaces" >&2
+    exit 1
+  fi
+  SWIFT_OTHER_FLAGS+=" -file-prefix-map $HOME=/build/user"
+  XCODEBUILD_ARGS+=("OTHER_CFLAGS=\$(inherited) -ffile-prefix-map=$HOME=/build/user"
+    "OTHER_CPLUSPLUSFLAGS=\$(inherited) -ffile-prefix-map=$HOME=/build/user")
+fi
 if [[ "$SWIFT_FRONTEND_WORKAROUND" -eq 1 || "${CMUX_SWIFT_FRONTEND_WORKAROUND:-}" == "1" || "${CMUX_SWIFT_DISABLE_GLOBAL_ISEL:-}" == "1" ]]; then
   SWIFT_FRONTEND_WORKAROUND_EFFECTIVE=1
   echo "==> Swift frontend workaround enabled for this reload"

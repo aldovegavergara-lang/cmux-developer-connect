@@ -37,6 +37,8 @@ with tempfile.TemporaryDirectory(prefix='cmux-dmg-') as folder:
             raise SystemExit(f'Nonportable or dangling app symlink: {link.relative_to(app)}')
     subprocess.run([sys.executable, str(ROOT / 'scripts/test_developer_bundle.py'),
                     '--app', str(app)], check=True)
+    subprocess.run([sys.executable, str(ROOT / 'scripts/audit-developer-bundle.py'),
+                    '--app', str(app)], check=True)
     info = plistlib.loads((app / 'Contents/Info.plist').read_bytes())
     (stage / 'Applications').symlink_to('/Applications', target_is_directory=True)
     (stage / 'LEEME.txt').write_text(

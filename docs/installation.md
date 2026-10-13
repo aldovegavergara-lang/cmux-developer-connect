@@ -1,6 +1,6 @@
 # Install cmux Developer Connect
 
-Use the prebuilt **DMG from [Releases](https://github.com/aldovegavergara-lang/cmux-developer-connect/releases/tag/v0.1.0-preview.1)** for Apple Silicon Macs (M1 or later). The minimum deployment target is macOS 14. It includes the sharing runtime; Xcode, Homebrew, Zig, Rust and an external Python installation are not needed.
+Use the prebuilt **DMG from [Releases](https://github.com/aldovegavergara-lang/cmux-developer-connect/releases/tag/developer-connect-v0.1.0-preview.1)** for Apple Silicon Macs (M1 or later). The minimum deployment target is macOS 14. It includes the sharing runtime; Xcode, Homebrew, Zig, Rust and an external Python installation are not needed.
 
 1. Download `cmux-Developer-Connect-…-macOS-arm64.dmg`, rather than GitHub's **Source code** archives.
 2. Open it and drag **cmux Developer Connect.app** to **Applications**.

@@ -43,6 +43,11 @@ info['LSEnvironment']={'CMUX_BUNDLE_ID':info['CFBundleIdentifier'],
     'CMUX_SOCKET_PATH':'/tmp/cmux-debug-developer-connect.sock','CMUX_DEV_BACKEND_MODE':'local'}
 (app/'Contents/Info.plist').write_bytes(plistlib.dumps(info))
 resources=app/'Contents/Resources'
+# Do not ship mutable bytecode caches from a previously exercised build. The
+# bundled sharing services run Python with -I -B and do not need these files.
+for cache in (resources/'peer-runtime').rglob('__pycache__'):
+    if cache.is_dir() and not cache.is_symlink():
+        shutil.rmtree(cache)
 # Standalone SwiftPM CLI resources must resolve relative to the CLI after the
 # app moves to another Mac, rather than through the build's Products directory.
 cli_resources=resources/'bin'

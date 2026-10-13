@@ -22,13 +22,10 @@ If Metal is missing, run `xcodebuild -downloadComponent MetalToolchain` with the
 For an optimized distribution, after preparing Go and the other tools:
 
 ```sh
-export CMUX_PEER_RUNTIME="$(python3 scripts/prepare-developer-peer-runtime.py)"
-CMUX_DEV_BACKEND_MODE=local CMUX_GHOSTTYKIT_PREPROVISIONED=1 \
-  ./scripts/reload.sh --release --tag installer-audit \
-  --name 'cmux Developer Installer' --no-global-cli-links
+./scripts/build-developer-release.sh
 ```
 
-Verify the build succeeded and the source/submodules are clean (`git status --short`; `git submodule status`). Use the printed **App path**, replacing the placeholder below:
+The release script builds arm64 only and remaps build-user paths in Swift/C/Rust diagnostics. Verify the build succeeded and the source/submodules are clean (`git status --short`; `git submodule status`). Use the printed **App path**, replacing the placeholder below:
 
 ```sh
 python3 scripts/make-developer-dmg.py \

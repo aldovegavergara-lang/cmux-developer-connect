@@ -1,6 +1,6 @@
 # Instalar cmux Developer Connect
 
-La descarga recomendada es el **DMG de [Releases](https://github.com/aldovegavergara-lang/cmux-developer-connect/releases/tag/v0.1.0-preview.1)**. Está compilado para Mac con Apple Silicon (M1 o posterior), con destino mínimo macOS 14. Incluye el runtime de las conexiones entre Macs. Para usarlo no necesitas Xcode, Homebrew, Zig, Rust ni Python instalado.
+La descarga recomendada es el **DMG de [Releases](https://github.com/aldovegavergara-lang/cmux-developer-connect/releases/tag/developer-connect-v0.1.0-preview.1)**. Está compilado para Mac con Apple Silicon (M1 o posterior), con destino mínimo macOS 14. Incluye el runtime de las conexiones entre Macs. Para usarlo no necesitas Xcode, Homebrew, Zig, Rust ni Python instalado.
 
 ## Instalar
 

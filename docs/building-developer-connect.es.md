@@ -36,13 +36,10 @@ Reutiliza la misma carpeta y tag al recompilar. No ejecutes varios builds a la v
 Con Go, Rust, Zig y Metal preparados:
 
 ```sh
-export CMUX_PEER_RUNTIME="$(python3 scripts/prepare-developer-peer-runtime.py)"
-CMUX_DEV_BACKEND_MODE=local CMUX_GHOSTTYKIT_PREPROVISIONED=1 \
-  ./scripts/reload.sh --release --tag installer-audit \
-  --name 'cmux Developer Installer' --no-global-cli-links
+./scripts/build-developer-release.sh
 ```
 
-La build debe terminar correctamente; usa la ruta **App path** que imprime. Comprueba que las fuentes y submódulos no tengan modificaciones pendientes antes de atribuir el binario a un commit:
+El script compila solo arm64, remapea las rutas del usuario en diagnósticos Swift/C/Rust y mantiene el tag y la caché entre ejecuciones. La build debe terminar correctamente; usa la ruta **App path** que imprime. Comprueba que las fuentes y submódulos no tengan modificaciones pendientes antes de atribuir el binario a un commit:
 
 ```sh
 git status --short

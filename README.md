@@ -23,7 +23,7 @@ It is not an official Manaflow release. Upstream base:
 
 ## Install (recommended)
 
-Download the **Apple Silicon DMG** from [Releases](https://github.com/aldovegavergara-lang/cmux-developer-connect/releases/tag/v0.1.0-preview.1), open it and drag the app to Applications. **No compilation or Xcode is needed.**
+Download the **Apple Silicon DMG** from [Releases](https://github.com/aldovegavergara-lang/cmux-developer-connect/releases/tag/developer-connect-v0.1.0-preview.1), open it and drag the app to Applications. **No compilation or Xcode is needed.**
 
 [Installation and troubleshooting](docs/installation.md) · [Build and package](docs/building-developer-connect.md). This preview is ad-hoc signed and not Apple notarized; the installation guide explains first-launch approval.
 

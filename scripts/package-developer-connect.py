@@ -13,6 +13,8 @@ parser=argparse.ArgumentParser()
 parser.add_argument('--app',required=True,type=pathlib.Path)
 parser.add_argument('--output',required=True,type=pathlib.Path)
 parser.add_argument('--source-commit',help='Verified source commit of this built app')
+parser.add_argument('--version',help='Distribution version, for example 0.1.0-preview.1')
+parser.add_argument('--no-archive',action='store_true',help='Stage the app without creating a ZIP')
 args=parser.parse_args()
 source=args.app.resolve()
 info=plistlib.loads((source/'Contents/Info.plist').read_bytes())
@@ -31,11 +33,29 @@ if args.source_commit:
 info['CFBundleIdentifier']='com.cmuxterm.app.debug.developer.connect'
 info['CFBundleName']='cmux Developer Connect'
 info['CFBundleDisplayName']='cmux Developer Connect'
+if args.version:
+    if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+(?:-[a-z0-9.]+)?',args.version):
+        parser.error('Expected a semantic distribution version')
+    info['CFBundleShortVersionString']=args.version
+    info['CFBundleVersion']=args.version.split('-')[0]
 # No source-Mac path, source identity, private key, token or invitation travels with the app.
 info['LSEnvironment']={'CMUX_BUNDLE_ID':info['CFBundleIdentifier'],
     'CMUX_SOCKET_PATH':'/tmp/cmux-debug-developer-connect.sock','CMUX_DEV_BACKEND_MODE':'local'}
 (app/'Contents/Info.plist').write_bytes(plistlib.dumps(info))
 resources=app/'Contents/Resources'
+# Standalone SwiftPM CLI resources must resolve relative to the CLI after the
+# app moves to another Mac, rather than through the build's Products directory.
+cli_resources=resources/'bin'
+cli_resources.mkdir(exist_ok=True)
+for resource_bundle in resources.glob('*.bundle'):
+    if not resource_bundle.is_dir():
+        continue
+    link=cli_resources/resource_bundle.name
+    if link.is_symlink() or link.is_file():
+        link.unlink()
+    elif link.is_dir():
+        shutil.rmtree(link)
+    link.symlink_to(pathlib.Path('..')/resource_bundle.name,target_is_directory=True)
 shutil.copyfile(pathlib.Path(__file__).resolve().parents[1]/'LICENSE',resources/'Developer-LICENSE')
 shutil.copyfile(pathlib.Path(__file__).resolve().parents[1]/'config/developer-peer-runtime.json',resources/'Developer-runtime.json')
 subprocess.run(['/usr/bin/codesign','--force','--deep','--sign','-',str(app)],check=True)
@@ -77,6 +97,9 @@ contraseña en los argumentos del proceso.
 El segundo Mac físico aún debe probarse; las pruebas locales usan dos instancias aisladas.
 '''
 (destination/'LEEME.txt').write_text(instructions)
+if args.no_archive:
+    print(json.dumps({'app':str(app),'version':args.version,'source_commit':args.source_commit}))
+    raise SystemExit(0)
 archive=destination.parent/(destination.name+'.zip')
 subprocess.run(['/usr/bin/ditto','-c','-k','--sequesterRsrc','--keepParent',str(destination),str(archive)],check=True)
 digest=hashlib.sha256(archive.read_bytes()).hexdigest()

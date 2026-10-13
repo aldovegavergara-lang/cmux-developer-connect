@@ -21,6 +21,12 @@ No es una versión oficial de Manaflow. Base upstream:
 - Acota conexiones, tiempos, respuestas y geometría; revalida el acceso antes de
   escribir y conserva la identidad del proceso durante un pegado fragmentado.
 
+## Instalar (recomendado)
+
+Descarga el **DMG para Apple Silicon** desde [Releases](https://github.com/aldovegavergara-lang/cmux-developer-connect/releases/tag/v0.1.0-preview.1). Abre el DMG y arrastra la app a Aplicaciones. **No necesitas compilar ni instalar Xcode.**
+
+[Instalación y solución de problemas](docs/installation.es.md) · [Compilar y empaquetar](docs/building-developer-connect.es.md). Esta preview tiene firma local y no está notarizada; la guía explica la autorización de primera apertura.
+
 ## Compilación y uso
 
 El empaquetado actual se enfoca en Apple Silicon. Sigue [CONTRIBUTING.md](CONTRIBUTING.md)

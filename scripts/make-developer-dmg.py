@@ -29,7 +29,7 @@ with tempfile.TemporaryDirectory(prefix='cmux-dmg-') as folder:
                     '--app', str(args.app.resolve()), '--output', str(stage),
                     '--version', args.version, '--source-commit', args.source_commit,
                     '--no-archive'], check=True)
-    app = stage / 'cmux Developer Connect.app'
+    app = (stage / 'cmux Developer Connect.app').resolve()
     # A packaged app must be self-contained. Framework version links are allowed
     # only when their resolved target remains inside the app.
     for link in app.rglob('*'):
